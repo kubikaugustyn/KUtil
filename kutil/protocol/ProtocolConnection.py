@@ -18,18 +18,36 @@ class ProtocolConnection:
     closed: bool
     sock: socket
 
-    def __init__(self, address: tuple[str, int], layers: list[AbstractProtocol], onData: OnDataListener):
+    def __init__(self, address: tuple[str, int], layers: list[AbstractProtocol], onData: OnDataListener,
+                 sock: socket | None = None):
         self.layers = layers
         self.onData = onData
         self.receiverThread = Thread(target=self.receive)
         self.closed = False
+        if sock is None:  # If we are a client connection
+            self.connect(address)
+            self.startRecv()
+        else:  # If we are a server's client connection handler
+            self.sock = sock
+            # Note that you need to manually call startRecv()
+        self.init()
+
+    def init(self):
+        pass  # Subclasses will overwrite this
+
+    def onDataInner(self, data: Any) -> bool | Any:
+        return True  # Subclasses will overwrite this, return whether you want to call the onData handler
+
+    def startRecv(self):
+        self.receiverThread.start()
+
+    def connect(self, address: tuple[str, int]):
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.connect(address)
 
-        self.receiverThread.start()
-
     def addProtocol(self, protocol: AbstractProtocol):
         assert protocol not in self.layers, "Protocol already added"
+        assert isinstance(protocol, AbstractProtocol)
         self.layers.append(protocol)
 
     def removeProtocol(self, protocol: AbstractProtocol):
@@ -64,7 +82,15 @@ class ProtocolConnection:
         try:
             for layer in self.layers[:-1]:
                 buff = layer.unpackSubProtocol(buff)
-            self.onData(self.layers[-1].unpackData(buff))
+            data: Any = self.layers[-1].unpackData(buff)
+            dataInner: bool | Any = self.ownConnection.onDataInner(data)
+            isBool: bool = isinstance(dataInner, bool)
+            if not isBool or dataInner is True:
+                if not isBool:
+                    # print(data, "-->", dataInner)
+                    data = dataInner
+                # print("On data:", data, "with inner:", dataInner)
+                self.onData(data)
             return True
         except NeedMoreDataError:
             print("Need more data!")
@@ -79,8 +105,14 @@ class ProtocolConnection:
             else:
                 self.layers[len(self.layers) - 1 - i].packSubProtocol(buff)
         try:
-            self.sock.send(buff.export())
+            self.sock.sendall(buff.export())
         except OSError:
             self.close()
             return False
         return True
+
+    @property
+    def ownConnection(self):
+        """Returns self (usually). Used to split the work across different connection protocol
+         classes when the protocols change (e.g. HTTP --> WebSocket)"""
+        return self  # Maybe the connection changed (protocol switch)

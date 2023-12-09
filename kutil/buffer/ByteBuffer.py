@@ -45,6 +45,8 @@ class ByteBuffer(Iterable[int]):
         return len(self.data) - self.pointer
 
     def readAll(self) -> bytearray:
+        if len(self) == 0:
+            return bytearray(0)
         self.has(1)
         amount = len(self)
         self.pointer += amount

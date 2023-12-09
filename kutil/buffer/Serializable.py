@@ -1,0 +1,15 @@
+#  -*- coding: utf-8 -*-
+__author__ = "kubik.augustyn@post.cz"
+
+from abc import abstractmethod
+from kutil.buffer.ByteBuffer import ByteBuffer
+
+
+class Serializable:
+    @abstractmethod
+    def write(self, buff: ByteBuffer):
+        raise NotImplementedError
+
+    @abstractmethod
+    def read(self, buff: ByteBuffer):
+        raise NotImplementedError

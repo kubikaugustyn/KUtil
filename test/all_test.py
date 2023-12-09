@@ -1,7 +1,8 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-import test.tcp_connection
-import test.http_connection
+import test.tcp_connection  # Test TCP connection
+import test.http_connection  # Test HTTP request
+import test.http_server  # Test HTTP server + WS server
 
 print("All tests passed")

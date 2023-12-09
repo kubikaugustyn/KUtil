@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket server test</title>
+</head>
+<body>
+<!--<button id="test">Test</button>-->
+<h1 id="state"></h1>
+<script>
+    var state = val => {
+        var elem = document.getElementById("state")
+        var lines = elem.innerHTML ? elem.innerHTML.split("<br>") : []
+        lines.push(val)
+        if (lines.length >= 2) elem.style.webkitMaskImage = "-webkit-gradient(linear, left bottom, left top, from(rgba(0,0,0,1)), to(rgba(0,0,0,0)))"
+        if (lines.length > 10) lines = lines.slice(lines.length - 10)
+        elem.innerHTML = lines.join("<br>")
+    }
+
+    async function test() {
+        var ws = new WebSocket("ws://localhost:666/ws")
+        state("Connecting...")
+        await new Promise((resolve, reject) => {
+            ws.onerror = reject
+            ws.onopen = resolve
+            ws.onclose = () => reject("closed")
+        })
+        state("Open, waiting for message...")
+        /**
+         * @type {MessageEvent}
+         */
+        var msg = await new Promise((resolve, reject) => {
+            ws.onerror = reject
+            ws.onmessage = resolve
+            ws.onclose = () => reject("closed")
+        })
+        if (msg.data !== "test") {
+            state("Bad message.")
+            ws.close(1003, "bad data")
+            return
+        } else {
+            state("Good message.")
+            ws.send("good")
+            ws.close(1000, "good data")
+        }
+        await new Promise((resolve, reject) => {
+            ws.onerror = reject
+            ws.onclose = resolve
+        })
+    }
+
+    function caller() {
+        test().then(() => setTimeout(caller, 1000)).catch(reason => {
+            state(reason === "closed" ? "Closed." : "Error.")
+            if (reason === "closed") location.reload()
+            // console.log(reason)
+            setTimeout(caller, 1000)
+        })
+    }
+
+    caller()
+
+    /*document.getElementById("test").onclick = () => {
+        document.getElementById("state").innerHTML = ""
+        test().then(() => state("Perfect")).catch(reason => {
+            if (reason === "closed") {
+                state("Closed.")
+                return
+            }
+            state("Error")
+            console.log(reason)
+        })
+    }*/
+</script>
+</body>
+</html>
