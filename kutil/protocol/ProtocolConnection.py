@@ -75,7 +75,7 @@ class ProtocolConnection:
                     buff.reset()
         except OSError:
             self.close()
-        except ConnectionAbortedError | ConnectionError | ConnectionResetError:
+        except (ConnectionAbortedError, ConnectionError, ConnectionResetError):
             self.close()
 
     def tryReceivedData(self, buff: ByteBuffer) -> bool:

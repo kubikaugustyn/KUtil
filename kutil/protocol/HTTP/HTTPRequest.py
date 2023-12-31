@@ -25,6 +25,8 @@ class HTTPThing(Serializable):
         raise NotImplementedError
 
     def writeRest(self, buff: ByteBuffer):
+        # Make sure the content-length is present and correct
+        self.headers["Content-Length"] = str(len(self.body))
         for name, value in self.headers.items():
             buff.write(self.enc(str(name))).write(self.HEADER_SEP).write(self.enc(value)).write(self.CRLF)
         buff.write(self.CRLF)

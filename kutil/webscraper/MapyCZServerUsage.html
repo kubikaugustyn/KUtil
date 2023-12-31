@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MapyCZServer - Usage</title>
+    <style>
+        table, td, th {
+            border: 1px solid black;
+            padding: 2px;
+        }
+
+        pre {
+            background-color: #f0f0f0;
+            width: fit-content;
+            padding: 5px;
+            border-radius: 8px;
+            border: 1px solid black
+        }
+    </style>
+</head>
+<body>
+<h1>MapyCZServer - Usage</h1>
+<p>Start your server with the following code:</p>
+<pre>
+server: MapyCZServer = MapyCZServer(port=${PORT}, host="${HOST}")
+server.listen()
+</pre>
+<p>Then, you can import the default layer data from the following URI:</p>
+<pre>http://${HOST}:${PORT}/tile/basic?x={x}&y={y}&z={z}</pre>
+<a href="http://${HOST}:${PORT}/tile/basic?x=1101&y=696&z=11" target="_blank">An example tile</a>
+<h2>Params</h2>
+<p>The full format of the request is this URI:</p>
+<pre>http://${HOST}:${PORT}/tile/{mapType}?x={x}&y={y}&z={z}&tileSize={tileSize}&lang={lang}</pre>
+<h3>Map type</h3>
+<p>Map types are the following:</p>
+<table>
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Code value</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>Základní</td>
+        <td>
+            <a href="http://${HOST}:${PORT}/tile/basic?x=1101&y=696&z=11" target="_blank">basic</a>
+        </td>
+    </tr>
+    <tr>
+        <td>Turistická</td>
+        <td>
+            <a href="http://${HOST}:${PORT}/tile/outdoor?x=1101&y=696&z=11" target="_blank">outdoor</a>
+        </td>
+    </tr>
+    <tr>
+        <td>Letecká</td>
+        <td>
+            <a href="http://${HOST}:${PORT}/tile/aerial?x=1101&y=696&z=11" target="_blank">aerial</a>
+        </td>
+    </tr>
+    <tr>
+        <td>Popisky a hranice</td>
+        <td>
+            <a href="http://${HOST}:${PORT}/tile/names-overlay?x=1101&y=696&z=11" target="_blank">names-overlay</a>
+        </td>
+    </tr>
+    <tr>
+        <td>Zimní</td>
+        <td>
+            <a href="http://${HOST}:${PORT}/tile/winter?x=1101&y=696&z=11" target="_blank">winter</a>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<h3>Query params:</h3>
+<table>
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Required</th>
+        <th>Default</th>
+        <th>Values</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>x</td>
+        <td>The X coordinate</td>
+        <td>Yes</td>
+        <td>(error)</td>
+        <td>(any int)</td>
+    </tr>
+    <tr>
+        <td>y</td>
+        <td>The Y coordinate</td>
+        <td>Yes</td>
+        <td>(error)</td>
+        <td>(any int)</td>
+    </tr>
+    <tr>
+        <td>z</td>
+        <td>The zoom</td>
+        <td>Yes</td>
+        <td>(error)</td>
+        <td>(any int)</td>
+    </tr>
+    <tr>
+        <td>tileSize</td>
+        <td>Size of the tile</td>
+        <td>No</td>
+        <td>256</td>
+        <td>256, 256@2x (not for all mapTypes)</td>
+    </tr>
+    <tr>
+        <td>lang</td>
+        <td>The tile's language</td>
+        <td>No</td>
+        <td>cs</td>
+        <td>cs, de, el, en, es, fr, it, nl, pl, pt, ru, sk, td, uk</td>
+    </tr>
+    </tbody>
+</table>
+<a href="https://developer.mapy.cz/rest-api/funkce/mapove-dlazdice/" target="_blank">
+    Visit this page for more info about the tiles
+</a>
+<h2>I want a valid API key</h2>
+<p>For that, I've added <a href="http://${HOST}:${PORT}/api_key.txt" target="_blank">this text</a> and <a
+        href="http://${HOST}:${PORT}/api_key.json" target="_blank">this json</a> API endpoint.</p>
+<h2>I want the geocoding API</h2>
+<p>Well, the base URI is the following:</p>
+<pre>http://${HOST}:${PORT}/geocoding/{kind}?{query}</pre>
+<p>but you have to use <a href="https://api.mapy.cz/v1/docs/geocode/" target="_blank">the official docs</a> to get the
+    query parameters (the API key is set automatically by my server). The kinds are the following: "rgeocode", "geocode"
+    and "suggest". Note that here, the language is of the "cs" kind, but the country names are of the "cz" kind.</p>
+<a href="http://${HOST}:${PORT}/geocoding/suggest?query=Roudnice+nad&lang=cs&limit=5&type=regional.municipality&locality=cz"
+   target="_blank">An example suggestion</a><br>
+<a href="http://${HOST}:${PORT}/geocoding/geocode?query=Roudnice+nad&lang=cs&limit=5&type=regional.municipality&locality=cz"
+   target="_blank">An example geocode</a><br>
+<a href="http://${HOST}:${PORT}/geocoding/rgeocode?lon=14.26175&lat=50.42528"
+   target="_blank">An example reverse geocode</a><br>
+<a href="https://developer.mapy.cz/rest-api/funkce/geokodovani/" target="_blank">
+    Visit this page for more info about geocoding
+</a>
+<h2>I want the routing API</h2>
+<p>Well, the base URI is the following:</p>
+<pre>http://${HOST}:${PORT}/routing/route/?{query}</pre>
+<p>but you have to use <a href="https://api.mapy.cz/v1/docs/routing/" target="_blank">the official docs</a> to get the
+    query parameters (the API key is set automatically by my server). Note that my code doesn't support multiple
+    occurences of the same query key (yet), so you must use the "unexploded format".</p>
+<a href="http://${HOST}:${PORT}/routing/route?start=14.26175,50.42528&end=14.43414,50.08355&routeType=car_fast_traffic&lang=cs&format=geojson&avoidToll=false"
+   target="_blank">An example route</a><br>
+<a href="https://developer.mapy.cz/rest-api/funkce/planovani/" target="_blank">
+    Visit this page for more info about routing
+</a>
+</body>
+</html>

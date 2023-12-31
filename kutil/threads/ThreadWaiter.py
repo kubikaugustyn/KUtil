@@ -1,19 +1,18 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from threading import BoundedSemaphore
+from threading import Semaphore
 
 
 class ThreadWaiter:
     canBeWaiting: bool
-    isWaiting: bool
-    semaphore: BoundedSemaphore
+    waitingThreadCount: int
+    semaphore: Semaphore
 
     def __init__(self):
         self.canBeWaiting = True
-        self.isWaiting = False
-        self.semaphore = BoundedSemaphore(1)
-        self.semaphore.acquire(blocking=True)  # Make sure the internal counter is 0
+        self.waitingThreadCount = 0
+        self.semaphore = Semaphore(0)
 
     def wait(self, maxTime: float | None = None) -> bool:
         """
@@ -22,11 +21,9 @@ class ThreadWaiter:
         :param maxTime: The maximum time the thread can be blocked for, otherwise times out
         :return: Whether the wait completed successfully (True) or timed out (False)
         """
-        if self.isWaiting:
-            raise ValueError("Cannot wait while waiting")
         if not self.canBeWaiting:
             return True
-        self.isWaiting = True
+        self.waitingThreadCount += 1
         result: bool = True
         if maxTime is None:
             self.semaphore.acquire(blocking=True)
@@ -35,17 +32,20 @@ class ThreadWaiter:
                 result = self.semaphore.acquire(blocking=True, timeout=maxTime)
             except TimeoutError:
                 result = False
-        self.isWaiting = False
+        self.waitingThreadCount -= 1
         return result
 
     def release(self):
         """
-        Releases the thread that called wait(). If wait() wasn't called yet,
-        make sure the wait thread won't wait even if called.
+        Releases all threads that called wait(). If wait() wasn't called yet,
+        make sure the threads won't wait even if they call wait().
         """
-        if not self.isWaiting:
-            self.canBeWaiting = False
-            return
-        if not self.canBeWaiting:
-            raise ValueError("Cannot be waiting when waiting is forbidden")
-        self.semaphore.release(1)
+        self.canBeWaiting = False
+        if self.waitingThreadCount > 0:
+            self.semaphore.release(self.waitingThreadCount)
+
+    def reset(self):
+        """Resets the waiter, """
+        if self.waitingThreadCount > 0:
+            self.release()
+        self.canBeWaiting = True

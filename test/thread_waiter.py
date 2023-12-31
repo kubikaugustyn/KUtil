@@ -14,8 +14,13 @@ def otherThread():
     waiter.release()
 
 
+def waitAndCheck():
+    sTime = time()
+    assert waiter.wait(maxTime=1)
+    deltaTime = time() - sTime
+    assert deltaTime > .099
+
+
 Thread(target=otherThread).start()
-sTime = time()
-assert waiter.wait(maxTime=1)
-deltaTime = time() - sTime
-assert deltaTime > .099
+Thread(target=waitAndCheck).start()
+waitAndCheck()

@@ -32,6 +32,9 @@ class HTTPServerProtocol(AbstractProtocol):
         # return buff  # Nothing lol
 
     def packData(self, data: HTTPResponse, buff: ByteBuffer):
+        # Make sure to mark the response
+        data.headers["Server"] = "KUtil"
+
         data.write(buff)
 
     def packSubProtocol(self, buff: ByteBuffer):
