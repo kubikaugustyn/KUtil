@@ -44,7 +44,8 @@ class MapyCZServer(WebScraperServer):
     __scrapeAroundWorkerWaiter: ThreadWaiter
     __cacheSizeLimiterWaiter: ThreadWaiter
 
-    def __init__(self, port: int = 666, host: str = "localhost", scrapeAroundAutomatically: bool = False,
+    def __init__(self, port: int = 666, host: str = "localhost",
+                 scrapeAroundAutomatically: bool = False,
                  scrapeAroundWorkerCount: int = 1):
         super().__init__(port, host)
         self.__scrapeAroundArgs = []
@@ -80,10 +81,11 @@ class MapyCZServer(WebScraperServer):
                 mapSet = MapSet(mapSetStr)
             except (KeyError, TypeError, ValueError):
                 resp = WebScraperServer.badRequest()
-                resp.body = HTTPResponse.enc(f'<h1>Bad request - unknown layer kind: {mapSetStr}</h1>'
-                                             f'<a href="https://developer.mapy.cz/rest-api/funkce/mapove-dlazdice/">'
-                                             f'Visit this page for more info</a><br>'
-                                             f'Possible kinds:<br>{"<br>".join(map(lambda item: f"{item.name}: <b>{item.value}</b>", MapSet))}')
+                resp.body = HTTPResponse.enc(
+                    f'<h1>Bad request - unknown layer kind: {mapSetStr}</h1>'
+                    f'<a href="https://developer.mapy.cz/rest-api/funkce/mapove-dlazdice/">'
+                    f'Visit this page for more info</a><br>'
+                    f'Possible kinds:<br>{"<br>".join(map(lambda item: f"{item.name}: <b>{item.value}</b>", MapSet))}')
                 return resp
             try:
                 x = int(params["x"])
@@ -96,8 +98,8 @@ class MapyCZServer(WebScraperServer):
                 if tileSize == "256@2x":
                     assert mapSet in (MapSet.ZAKLADNI, MapSet.TURISTICKA, MapSet.ZIMNI), \
                         "Invalid tile size - used 256@2x in other mapSet than ZAKLADNI, TURISTICKA, ZIMNI"
-                assert lang in ("cs", "de", "el", "en", "es", "fr", "it", "nl", "pl", "pt", "ru", "sk", "tr", "uk"), \
-                    "Invalid language"
+                assert lang in ("cs", "de", "el", "en", "es", "fr", "it", "nl", "pl", "pt",
+                                "ru", "sk", "tr", "uk"), "Invalid language"
             except (ValueError, KeyError, AssertionError) as e:
                 resp = WebScraperServer.badRequest()
                 resp.body = (b'<h1>Bad request - bad params</h1>'
@@ -115,7 +117,8 @@ class MapyCZServer(WebScraperServer):
         elif req.requestURI == "/api_key.txt":
             headers: HTTPHeaders = HTTPHeaders()
             headers["Content-Type"] = "text/plain"
-            resp: HTTPResponse = HTTPResponse(200, "OK", headers, HTTPResponse.enc(self.__obtainAPIKey()))
+            resp: HTTPResponse = HTTPResponse(200, "OK", headers,
+                                              HTTPResponse.enc(self.__obtainAPIKey()))
             return resp
         elif req.requestURI == "/api_key.json":
             headers: HTTPHeaders = HTTPHeaders()
@@ -124,7 +127,8 @@ class MapyCZServer(WebScraperServer):
                 body = {"key": self.__obtainAPIKey(), "error": False}
             except Exception as e:
                 body = {"key": None, "error": True, "error_str": str(e)}
-            resp: HTTPResponse = HTTPResponse(200, "OK", headers, HTTPResponse.enc(json.dumps(body)))
+            resp: HTTPResponse = HTTPResponse(200, "OK", headers,
+                                              HTTPResponse.enc(json.dumps(body)))
             return resp
         elif uriWithoutQuery == "/routing/route":
             # https://api.mapy.cz/v1/docs/routing/
@@ -271,19 +275,22 @@ class MapyCZServer(WebScraperServer):
                     continue  # This is the tile we already scraped
                 try:
                     # canScrapeAround=False - if not, it will repeat infinitely
-                    self.__scrape(x + deltaX, y + deltaY, zoom, tileSize, mapSet, lang, canScrapeAround=False)
+                    self.__scrape(x + deltaX, y + deltaY, zoom, tileSize, mapSet, lang,
+                                  canScrapeAround=False)
                 except requests.exceptions.SSLError:
                     pass  # EOF occurred in violation of protocol - IDK why
         # print("Scraped around.")
 
-    def __storeToCache(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet, lang: str, data: bytes):
+    def __storeToCache(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet, lang: str,
+                       data: bytes):
         if self.__cachePath is None:
             return
         self.__cacheSizeLimiterWaiter.release()
         with open(self.__getCacheFilePath(x, y, zoom, tileSize, mapSet, lang), "wb+") as f:
             f.write(data)
 
-    def __obtainFromCache(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet, lang: str) -> bytes | None:
+    def __obtainFromCache(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet,
+                          lang: str) -> bytes | None:
         if self.__cachePath is None:
             return None
         path = self.__getCacheFilePath(x, y, zoom, tileSize, mapSet, lang)
@@ -318,13 +325,16 @@ class MapyCZServer(WebScraperServer):
                     return
                 os.remove(path)
 
-    def __getCacheKey(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet, lang: str) -> str:
+    def __getCacheKey(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet,
+                      lang: str) -> str:
         if zoom <= 6:
             return f"{x}_{y}_{zoom}_{tileSize}_{mapSet.value}_{lang}.png"
         return f"{x}_{y}_{zoom}_{tileSize}_{mapSet.value}.png"
 
-    def __getCacheFilePath(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet, lang: str) -> str:
-        return os.path.join(self.__cachePath, self.__getCacheKey(x, y, zoom, tileSize, mapSet, lang))
+    def __getCacheFilePath(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet,
+                           lang: str) -> str:
+        return os.path.join(self.__cachePath,
+                            self.__getCacheKey(x, y, zoom, tileSize, mapSet, lang))
 
     @staticmethod
     def __setCookies(jar: RequestsCookieJar, response: requests.Response):
