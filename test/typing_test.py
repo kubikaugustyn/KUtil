@@ -1,19 +1,14 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+from unittest import TestCase
+
 from kutil.typing import singleton, anyattribute
 
 
 @singleton
 class Number:
     value: int = 0
-
-
-a = Number()
-b = Number()
-a.value = 9
-assert b.value == 9
-assert id(a) == id(b)
 
 
 @anyattribute("_vals")
@@ -43,11 +38,29 @@ class AnyAttr:
         self._myBool = newVal
 
 
-x = AnyAttr()
-x.sus = 69
-x.publicAttribute = 666
-x.myBool = False
-assert x.sus == 69
-assert x.publicAttribute == 666
-assert x.myBool is False
-assert set(iter(x)) == {'sus'}  # The keys are iterated over, but only the ones of _vals
+class TestTyping(TestCase):
+    a: Number
+    b: Number
+
+    x: AnyAttr
+
+    def setUp(self):
+        self.a = Number()
+        self.b = Number()
+
+        self.x = AnyAttr()
+
+    def test_singleton(self):
+        self.a.value = 9
+        self.assertEqual(self.b.value, 9)
+        self.assertEqual(id(self.a), id(self.b))
+
+    def test_any_attribute(self):
+        self.x.sus = 69
+        self.x.publicAttribute = 666
+        self.x.myBool = False
+        self.assertEqual(self.x.sus, 69)
+        self.assertEqual(self.x.publicAttribute, 666)
+        self.assertFalse(self.x.myBool)
+        # The keys are iterated over, but only the ones of _vals
+        self.assertEqual(set(iter(self.x)), {'sus'})

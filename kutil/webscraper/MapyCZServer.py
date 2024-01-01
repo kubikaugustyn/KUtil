@@ -258,7 +258,8 @@ class MapyCZServer(WebScraperServer):
             # sTime = time.time()
             self.__scrapeAroundWorkerWaiter.wait()
             # print(time.time() - sTime)
-            # TODO Make sure there isn't a collision between the multiple running threads (len > 0, but at pop, len = 0)
+            # TODO Make sure there isn't a collision between the multiple running threads
+            #  (len() > 0, but at pop(), len() = 0)
             if len(self.__scrapeAroundArgs) == 0:
                 # print("WAIT")
                 continue

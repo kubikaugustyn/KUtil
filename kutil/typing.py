@@ -12,8 +12,8 @@ from typing import Optional, overload, Iterable
 # Class decorators
 def singleton(cls):
     """
-    A decorator, making a class be able to only have one instance. If you try to instantiate it multiple times,
-    the same instance will be returned.
+    A decorator, making a class be able to only have one instance. If you try to instantiate it
+    multiple times, the same instance will be returned.
 
     >>> @singleton
     ... class Number:
@@ -50,12 +50,12 @@ def anyattribute(attributeStorage: str): ...
 
 def anyattribute(attributeStorageOrCls: str | type):
     """
-    A decorator, making a class able to have any attribute names. Optionally you can provide attribute storage
-    attribute name, which will make the class self-sustainable without any more configuration, just make sure to
-    also define the attribute storage attribute.
+    A decorator, making a class able to have any attribute names. Optionally you can provide
+    attribute storage attribute name, which will make the class self-sustainable without any
+    more configuration, just make sure to also define the attribute storage attribute.
 
-    It makes mutating defined attributes (either annotated attribute or a getter and setter pair) possible
-    and provides fallback for any other attribute name.
+    It makes mutating defined attributes (either annotated attribute or a getter and setter pair)
+    possible and provides fallback for any other attribute name.
 
     Note that you need to make sure you won't accidentally change defined attribute
     while wanting to change the fallback attribute's item.
@@ -95,11 +95,13 @@ def anyattribute(attributeStorageOrCls: str | type):
             if (not attributeStorage.startswith("_") or
                     attributeStorage.startswith("__") or
                     attributeStorage.endswith("_")):
-                raise ValueError("AnyAttribute class with attribute storage set must define the attribute storage name"
-                                 " that is private, but not too much (e.g. _vals, but not __vals_)")
+                raise ValueError("AnyAttribute class with attribute storage set must define the "
+                                 "attribute storage name that is private, but not"
+                                 " too much (e.g. _vals, but not __vals_)")
             # Check storage attribute itself
             if attributeStorage not in cls.__annotations__:
-                raise ValueError("AnyAttribute class with attribute storage set must define the attribute storage")
+                raise ValueError("AnyAttribute class with attribute storage"
+                                 " set must define the attribute storage attribute")
             # Check attribute manipulators
             if "__getattr__" in clsVars or "__delattr__" in clsVars:
                 raise ValueError("AnyAttribute class with attribute storage set must not implement"

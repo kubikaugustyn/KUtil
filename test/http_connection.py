@@ -1,25 +1,30 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from kutil.protocol.HTTP import HTTPResponse, HTTPRequest, HTTPMethod
+from unittest import TestCase
 
+from kutil.protocol.HTTP import HTTPResponse, HTTPRequest, HTTPMethod
 from kutil import HTTPConnection
 
-conn: HTTPConnection
 
+class TestHTTPConnection(TestCase):
+    conn: HTTPConnection
 
-def printResponse(resp: HTTPResponse):
-    assert resp.statusCode == 200
-    # print(f"Got response {resp.statusCode} ({resp.statusPhrase})")
-    # print("Headers:")
-    # for name, value in resp.headers.items():
-    #     print(f"    {name}: {value}")
-    # print("Body:")
-    # print(resp.body)
-    conn.close()
+    def setUp(self):
+        self.conn = HTTPConnection(("example.com", 80), self.__printResponse)
 
+    def tearDown(self):
+        self.conn.close()
 
-# if __name__ == '__main__':
-conn = HTTPConnection(("example.com", 80), printResponse)
-req: HTTPRequest = HTTPRequest(HTTPMethod.GET, "http://www.example.com/")
-conn.sendData(req)
+    def __printResponse(self, resp: HTTPResponse):
+        self.assertEqual(resp.statusCode, 200)
+        # print(f"Got response {resp.statusCode} ({resp.statusPhrase})")
+        # print("Headers:")
+        # for name, value in resp.headers.items():
+        #     print(f"    {name}: {value}")
+        # print("Body:")
+        # print(resp.body)
+
+    def test_http_connection(self):
+        req: HTTPRequest = HTTPRequest(HTTPMethod.GET, "http://www.example.com/")
+        self.conn.sendData(req)

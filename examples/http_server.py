@@ -53,8 +53,9 @@ def onConnection(conn: ProtocolConnection):
     # print(f"On connection...")
     return lambda data: onData(sus, data)
 
-# server: HTTPServer = HTTPServer(("localhost", 666), onConnection)
-# server.acceptWebsocket(acceptWebSocket)
-# server.listen()
-# Go to http://localhost:666/ and see the results
-# Works!!!
+
+if __name__ == '__main__':
+    server: HTTPServer = HTTPServer(("localhost", 666), onConnection)
+    server.acceptWebsocket(acceptWebSocket)
+    server.listen()
+    # Go to http://localhost:666/ and see the results

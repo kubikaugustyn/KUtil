@@ -1,19 +1,15 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+from unittest import main
+
 if __name__ == "__main__":
-    # import doctest
-    # import kutil
-    #
-    # doctest.testmod(m=kutil, verbose=True)
-    # TODO test all doctests in all docstrings
+    from test.doctest_test import Tester  # Test the thing itself
 
-    import test.tcp_connection  # Test TCP connection
-    import test.http_connection  # Test HTTP request
-    import test.http_server  # Test HTTP server + WS server
-    import test.brainfuck  # Test BrainFuck interpreter
-    import test.thread_waiter  # Test thread pausing
-    import test.mapy_cz  # Test Mapy.cz webscraper
-    import test.typing_test  # Test typing
+    from test.tcp_connection import TestTCPConnection  # Test TCP connection
+    from test.http_connection import TestHTTPConnection  # Test HTTP request
+    from test.brainfuck import TestBrainFuck  # Test BrainFuck interpreter
+    from test.thread_waiter import TestThreadWaiter  # Test thread pausing
+    from test.typing_test import TestTyping  # Test typing
 
-    print("All tests passed")
+    main()
