@@ -11,7 +11,8 @@ class ByteBuffer(Iterable[int]):
     pointer: int
 
     def __init__(self, dataOrLength: Iterable[int] | int = 0):
-        self.data = bytearray(dataOrLength) if isinstance(dataOrLength, int) else bytearray(dataOrLength)
+        self.data = bytearray(dataOrLength) if isinstance(dataOrLength, int) else bytearray(
+            dataOrLength)
         self.pointer = 0
 
     def readByte(self) -> int:
@@ -82,8 +83,10 @@ class ByteBuffer(Iterable[int]):
         return self
 
     def has(self, amount: int) -> bool:
-        assert amount > 0, "Invalid amount"
-        assert len(self.data) >= self.pointer + amount, "Not enough bytes"
+        if amount <= 0:
+            raise ValueError("Invalid amount")
+        if len(self.data) < self.pointer + amount:
+            raise IndexError("Not enough bytes")
         return True
 
     def __iter__(self):

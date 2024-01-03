@@ -6,8 +6,8 @@ from typing import Any, Iterator
 
 
 class Token:
-    kind: Enum
-    content: Any
+    kind: Enum  # A token kind defined by the language
+    content: Any  # Any arbitrary content of the token
 
     def __init__(self, kind: Enum, content: Any):
         self.kind = kind
@@ -20,6 +20,11 @@ class Token:
 
     def __ne__(self, other) -> bool:
         return not (self == other)
+
+    def __str__(self) -> str:
+        if self.content is None:
+            return f"<Token {self.kind.name}>"
+        return f"<Token {self.kind.name} - {ascii(self.content)}>"
 
 
 class TokenOutput(Iterator[Token]):

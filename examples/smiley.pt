@@ -1,0 +1,79 @@
+IGNORE Define the painter
+START OF CONTRACT
+WORK KIND IS PAINTER
+NAME IS Bob Smith
+HE NEEDS TO KNOW bg_color TO WORK WHICH IS "white" BY DEFAULT
+HE NEEDS TO KNOW color TO WORK WHICH IS "black" BY DEFAULT
+HE REMEMBERS canvas_size WHICH IS 69 BY DEFAULT
+JOB IS IGNORE Indentation doesn't matter
+    REMEMBER THAT canvas_size IS 9 IGNORE A variable
+    IGNORE Now Bob has to paint
+    RESIZE CANVAS TO BE canvas_size PIXELS WIDE
+    RESIZE CANVAS TO BE canvas_size PIXELS TALL
+    FILL CANVAS WITH bg_color
+
+    IGNORE Note that every brush of any width remembers it's state (color, position etc.) even if it's changed and brought back, so after changing a brush you must configure it again
+    CHANGE BRUSH FOR A ONE THAT IS 1 PIXEL WIDE
+    RINSE BRUSH IGNORE We must do that before changing the color, otherwise it would mix the colors
+    TIP BRUSH IN color PAINT
+    IGNORE Eyes
+    MOVE BRUSH TO BE 3 PIXELS FROM TOP
+    MOVE BRUSH TO BE 3 PIXELS FROM LEFT
+    DRAW ONE LITTLE SQUARE IGNORE Draws a pixel
+    MOVE BRUSH TO BE 3 PIXELS FROM RIGHT
+    DRAW ONE LITTLE SQUARE
+    IGNORE Nose
+    MOVE BRUSH TO BE IN HORIZONTAL CENTER IGNORE Only works if canvas width is of odd size
+    MOVE BRUSH TO BE IN VERTICAL CENTER IGNORE Only works if canvas height is of odd size
+    DRAW ONE LITTLE SQUARE
+    MOVE BRUSH 1 PIXEL DOWN
+    DRAW ONE LITTLE SQUARE
+    IGNORE Mouth upper 2 pixels
+    MOVE BRUSH TO BE 3 PIXELS FROM BOTTOM
+    MOVE BRUSH TO BE 2 PIXELS FROM LEFT
+    DRAW ONE LITTLE SQUARE
+    MOVE BRUSH TO BE 2 PIXELS FROM RIGHT
+    DRAW ONE LITTLE SQUARE
+    IGNORE Mouth line
+    MOVE BRUSH TO BE 2 PIXELS FROM BOTTOM
+    MOVE BRUSH TO BE 3 PIXELS FROM LEFT
+    PUT THE BRUSH DOWN IGNORE Starts a line
+    MOVE BRUSH TO BE 3 PIXELS FROM RIGHT
+    THROW THE BRUSH OUT OF THE WINDOW IGNORE The end, must be used, nothing after this is code but contract
+END OF CONTRACT
+
+IGNORE Define n => n + 1
+START OF CONTRACT
+WORK KIND IS MATHEMATICIAN
+NAME IS Bob Counter
+HE NEEDS TO KNOW n TO WORK WHICH IS 0 BY DEFAULT
+HIS PROOF OF WORK CALLED result IS 1 BY DEFAULT IGNORE result is the proof of work (the return value)
+JOB IS
+    IGNORE result = n + 1
+    CALCULATE result IS ADD n AND 1
+    DESTROY THE CALCULATOR WITH A HYDRAULIC PRESS
+END OF CONTRACT
+
+IGNORE Define the entry point
+START OF CONTRACT
+WORK KIND IS THE BOSS IGNORE Can also be BOSS, but THE BOSS is the entry point
+NAME IS Rick Astley
+HIS EMPLOYEE IS Bob Smith IGNORE Can be present multiple times
+HE REMEMBERS redraw_count WHICH IS 0 BY DEFAULT
+JOB IS
+    TELL Bob Counter THAT n IS redraw_count IGNORE n = redraw_count
+    TELL Bob Counter TO START WORKING IGNORE (call)
+    WAIT UNTIL Bob Counter IS DONE IGNORE (wait)
+    REMEMBER PROOF OF WORK THAT Bob Counter WORKED AS redraw_count IGNORE redraw_count = result
+
+    TELL Bob Smith THAT bg_color IS "red"
+    TELL Bob Smith THAT color IS "blue"
+    TELL Bob Smith TO START WORKING
+    WAIT UNTIL Bob Smith IS DONE
+    KILL ALL THE EMPLOYEES
+END OF CONTRACT
+
+IGNORE TEST1
+IGNORE TEST2
+IGNORE TEST3
+IGNORE TEST4

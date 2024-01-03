@@ -8,7 +8,8 @@ from kutil.language.Language import GenericLanguage
 
 from kutil.buffer import TextOutput, BidirectionalByteArray
 
-from kutil.language import InterpretedLanguage, Lexer, Parser, Interpreter, InterpreterExitCode, InterpreterError
+from kutil.language import InterpretedLanguage, Lexer, Parser, Interpreter, InterpreterExitCode, \
+    InterpreterError
 from kutil.language.AST import AST, ASTNode
 from kutil.language.Token import TokenOutput, Token
 
@@ -141,7 +142,8 @@ class BFInterpreter(Interpreter):
             else:
                 raise ValueError("Unknown node")
 
-    def interpretLoop(self, ast: AST, loopNodeIndexes: list[int], memory: BFMemory, output: TextOutput):
+    def interpretLoop(self, ast: AST, loopNodeIndexes: list[int], memory: BFMemory,
+                      output: TextOutput):
         loopNodes: list[ASTNode] = list(map(lambda i: ast.getNode(i), loopNodeIndexes))
         amount: int = 0
         while memory.read() > 0:
@@ -181,7 +183,8 @@ class BrainFuck(InterpretedLanguage):
     def __init__(self):
         super().__init__(BFLexer(), BFParser(), BFInterpreter())
 
-    def run(self, inputCode: str, output: Optional[TextOutput] = None, memory: BFMemory | None = None) -> \
+    def run(self, inputCode: str, output: Optional[TextOutput] = None,
+            memory: BFMemory | None = None) -> \
             tuple[InterpreterExitCode, InterpreterError | None]:
         ast: AST = GenericLanguage.run(self, inputCode)
         if output is None:

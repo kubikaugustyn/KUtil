@@ -14,7 +14,8 @@ from kutil.language.Lexer import Lexer
 from kutil.language.Parser import Parser
 from kutil.language.Compiler import Compiler
 from kutil.language.Interpreter import Interpreter, InterpreterExitCode
-from kutil.language.Error import LanguageError, InterpreterError
+from kutil.language.Error import InterpreterError
+from kutil.language.Bytecode import InstructionGenerator
 
 
 class GenericLanguage:
@@ -56,8 +57,9 @@ class InterpretedLanguage(GenericLanguage):
             output = TextOutput()
         return self.interpretInner(ast, output)
 
-    def interpretInner(self, ast: AST,output:TextOutput) -> tuple[InterpreterExitCode, InterpreterError | None]:
-        return self.interpreter.interpret(ast,output)
+    def interpretInner(self, ast: AST, output: TextOutput) -> \
+            tuple[InterpreterExitCode, InterpreterError | None]:
+        return self.interpreter.interpret(ast, output)
 
     @staticmethod
     @abstractmethod
@@ -72,11 +74,11 @@ class CompiledLanguage(GenericLanguage):
         super().__init__(lexer, parser)
         self.compiler = compiler
 
-    def run(self, inputCode: str) -> Any:
+    def run(self, inputCode: str) -> InstructionGenerator:
         ast: AST = super().run(inputCode)
         return self.compileInner(ast)
 
-    def compileInner(self, ast: AST) -> Any:
+    def compileInner(self, ast: AST) -> InstructionGenerator:
         return self.compiler.compile(ast)
 
     @staticmethod
