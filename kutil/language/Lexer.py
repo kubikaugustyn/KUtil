@@ -1,14 +1,14 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Iterator
 
 from kutil.language.Token import Token, TokenOutput
 from kutil.language.Error import LexerError
 
 
-class Lexer:
+class Lexer(ABC):
     def tokenize(self, inputCode: str) -> TokenOutput:
         try:
             output: TokenOutput = TokenOutput()

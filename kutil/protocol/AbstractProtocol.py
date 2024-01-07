@@ -2,7 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from typing import Any
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 
 from kutil.buffer import ByteBuffer
 
@@ -10,7 +10,7 @@ from kutil.buffer import ByteBuffer
 class NeedMoreDataError(BaseException): ...
 
 
-class AbstractProtocol:
+class AbstractProtocol(ABC):
     name: str = "AbstractProtocol"
     connection: object
 

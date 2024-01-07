@@ -9,4 +9,6 @@ from kutil.language.Compiler import Compiler
 
 class PTCompiler(Compiler):
     def compile(self, ast: AST) -> Any:
-        pass
+        for contract in ast.rootNodes():
+            nodes = ast.getNodes(contract.data)
+            pass

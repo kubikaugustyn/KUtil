@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from enum import Enum
 
 from kutil.buffer.TextOutput import TextOutput
@@ -17,7 +17,7 @@ class InterpreterExitCode(Enum):
     ERROR = 2
 
 
-class Interpreter:
+class Interpreter(ABC):
     @abstractmethod
     def interpret(self, ast: AST, output: TextOutput) -> tuple[InterpreterExitCode, InterpreterError | None]:
         """

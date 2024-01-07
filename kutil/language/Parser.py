@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 
 from kutil.language.Token import TokenOutput
 
@@ -10,7 +10,7 @@ from kutil.language.AST import AST
 from kutil.language.Error import ParserError
 
 
-class Parser:
+class Parser(ABC):
     def parse(self, tokens: TokenOutput) -> AST:
         try:
             return self.parseInner(tokens)

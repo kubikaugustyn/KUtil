@@ -6,7 +6,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 import inspect
 import sys
-from typing import Optional, overload, Iterable
+from typing import Optional, overload, Iterable, Callable
 
 
 # Class decorators
@@ -152,9 +152,11 @@ def anyattribute(attributeStorageOrCls: str | type):
             def __setattr__(self, name, value):
                 if name in self.__annotations__:  # An annotated property
                     super(cls, self).__setattr__(name, value)
-                elif name in clsVars and isinstance(clsVars[name], property):  # A property setter + getter
+                elif name in clsVars and isinstance(clsVars[name],
+                                                    property):  # A property setter + getter
                     # https://stackoverflow.com/questions/40357535/call-a-property-setter-dynamically
-                    assert clsVars[name].fset is not None, "You must implement a getter and setter pair"
+                    assert clsVars[
+                               name].fset is not None, "You must implement a getter and setter pair"
                     clsVars[name].fset(self, value)
                 else:  # Set property of any name
                     if attributeStorage is None or oldSetAttr is not None:
@@ -165,7 +167,8 @@ def anyattribute(attributeStorageOrCls: str | type):
             def __delattr__(self, name):
                 if name in self.__annotations__:  # An annotated property
                     raise AttributeError
-                elif name in clsVars and isinstance(clsVars[name], property):  # A property setter + getter
+                elif name in clsVars and isinstance(clsVars[name],
+                                                    property):  # A property setter + getter
                     raise AttributeError
                 else:  # Set property of any name
                     if attributeStorage is None or oldDelAttr is not None:
@@ -206,3 +209,154 @@ def anyattribute(attributeStorageOrCls: str | type):
     else:
         mod.__all__ = [fn.__name__]
     return fn"""
+
+
+def _overload_args_precompute_info(fn: Callable) -> tuple[Callable, Optional[list]]:
+    sig: inspect.Signature = inspect.signature(fn)
+    if sig.parameters == sig.empty:
+        return fn, None
+    params = dict(sig.parameters)
+    info = []
+    for name, arg in params.items():
+        # print(name, arg)
+        default = arg.default
+
+        annotation = arg.annotation
+        if annotation == arg.empty:
+            if default == arg.empty:
+                raise RuntimeError(f"You must either define a default value or "
+                                   f"annotate the type - {fn.__name__}{str(sig)} - {arg}")
+            annotation = type(default)
+
+        info.append((annotation, name, default))
+    return fn, info
+
+
+# This is the function that gets to replace the function that is being overloaded
+def _overloader_factory() -> Callable:
+    def wrapper(self, *args, **kwargs):
+        # print("Call the method with arguments", args, kwargs)
+        argTypes = list(map(lambda x: type(x), args))
+        candidates = []
+        for func, info in self.__overloads__:
+            if len(info) == 0:
+                # No arguments accepted
+                if len(args) == 0 and len(kwargs) == 0:
+                    candidates.append((func, info))
+                continue
+
+            filledArgs = dict(
+                map(
+                    lambda infoArg: (infoArg[1], infoArg[2] != inspect.Parameter.empty),
+                    info
+                )
+            )
+
+            for name, _ in zip(filledArgs.keys(), args):
+                filledArgs[name] = True
+
+            for name in kwargs.keys():
+                # assert filledArgs[name] is False, "Cannot overwrite a set positional argument"
+                filledArgs[name] = True
+
+            filledArgsCount = sum(filledArgs.values())
+
+            if filledArgsCount < len(info):
+                # Bad argument amount
+                continue
+            for ourArgType, ourArg, arg in zip(argTypes, args, info):
+                if arg[0] != ourArgType and not isinstance(ourArg, arg[0]):
+                    break
+            else:
+                candidates.append((func, info))
+        if len(candidates) == 1:
+            return candidates[0][0](*args, **kwargs)
+        elif len(candidates) > 1:
+            # Positional argument check
+            if len(kwargs) == 0:
+                correctArgCountFunc = None
+                for func, info in candidates:
+                    allPositional = all(
+                        map(lambda infoArg: infoArg[2] == inspect.Parameter.empty, info)
+                    )
+                    if len(info) == len(args) and allPositional:
+                        if correctArgCountFunc is not None:
+                            correctArgCountFunc = None
+                            break  # This search failed
+                        correctArgCountFunc = func
+                if correctArgCountFunc is not None:
+                    return correctArgCountFunc(*args, **kwargs)
+            # Hopefully occurs only when kwargs must decide
+            if len(kwargs) > 0:
+                for func, info in candidates:
+                    for i, arg in enumerate(info):
+                        if i < len(args):
+                            continue
+                        if arg[1] not in kwargs and arg[2] == inspect.Parameter.empty:
+                            break
+                    else:
+                        return func(*args, **kwargs)
+            raise ValueError("No suiting overload method found - keyword "
+                             "arguments must be added to choose one exact method")
+        raise ValueError("No suiting overload method found")
+
+    class ReprWrapper:
+        __overloads__: dict
+
+        def __call__(self, *args, **kwargs):
+            return wrapper(self, *args, **kwargs)
+
+        def __repr__(self):
+            funcs = map(
+                lambda info: info[0].__name__ + str(inspect.signature(info[0])),
+                self.__overloads__
+            )
+            return f"<kutil.typing.overload_args wrapper for {', '.join(funcs)} at {hex(id(self))}>"
+
+    return ReprWrapper()
+
+
+def overload_args(fn: Callable) -> Callable:
+    """
+    A decorator for overloading a function depending on it's provided arguments.
+
+    You should use the built-in typing.overload decorator instead and check the arguments by hand,
+    this is just for educational purposes.
+
+    Sadly it isn't supported by IDEs, but Python works with it.
+
+    >>> @overload_args
+    >>> def my_func():
+    ...     print("Hello world!")
+    >>> @overload_args
+    >>> def my_func(name):
+    ...     print(f"Hello {name}!")
+    >>> my_func()
+    Hello world!
+    >>> my_func("John")
+    Hello John!
+    """
+
+    assert inspect.isfunction(fn), "This decorator only works for def functions"
+    fn.__overloaded__ = True
+
+    callerInfo: inspect.FrameInfo = inspect.stack()[1]
+    func_locals = callerInfo.frame.f_locals
+
+    overloadInfo = _overload_args_precompute_info(fn)
+
+    if fn.__name__ not in func_locals:
+        _overloader = _overloader_factory()  # It's actually a class (needs __repr__)
+        _overloader.__overloader__ = True
+        overloader = _overloader
+        overloads = [overloadInfo]
+        setattr(overloader, "__overloads__", overloads)
+    else:
+        overloader = func_locals[fn.__name__]
+        assert isinstance(overloader, object) and getattr(overloader, "__overloader__") is True
+        overloads = getattr(overloader, "__overloads__")
+        assert overloadInfo not in overloads, ("Cannot overload a function with a certain signature"
+                                               " multiple times")
+        overloads.append(overloadInfo)
+
+    return overloader

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 
 from kutil.protocol.HTTP.HTTPHeaders import HTTPHeaders
 from kutil.protocol.HTTP.HTTPResponse import HTTPResponse
@@ -11,7 +11,7 @@ from kutil.protocol.ProtocolConnection import ProtocolConnection
 from kutil.protocol.HTTPServer import HTTPServer, HTTPServerConnection
 
 
-class WebScraperServer:
+class WebScraperServer(ABC):
     server: HTTPServer
     port: int
     host: str

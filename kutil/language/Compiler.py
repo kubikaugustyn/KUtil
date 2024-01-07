@@ -1,13 +1,13 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Any
 
 from kutil.language.AST import AST
 
 
-class Compiler:
+class Compiler(ABC):
     @abstractmethod
     def compile(self, ast: AST) -> Any:
         """

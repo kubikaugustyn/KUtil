@@ -19,6 +19,14 @@ class ASTNode:
     def __ne__(self, other) -> bool:
         return True
 
+    def __repr__(self):
+        selfType = type(self)
+        if selfType == ASTNode:  # If this is not a subclass
+            return f"<ASTNode {self.type.name} node at {hex(id(self))}>"
+            # return f"<kutil.language.AST.ASTNode {self.type.name} node at {hex(id(self))}>"
+        return f"<{selfType.__name__} node at {hex(id(self))}>"
+        # return super().__repr__()
+
 
 class AST:
     nodes: list[ASTNode]
@@ -37,6 +45,9 @@ class AST:
 
     def getNode(self, nodeI: int) -> ASTNode:
         return self.nodes[nodeI]
+
+    def getNodes(self, nodeIs: list[int]) -> list[ASTNode]:
+        return list(map(self.getNode, nodeIs))
 
     def rootNodes(self) -> Iterator[ASTNode]:
         for nodeI in self.root:
