@@ -317,6 +317,8 @@ def _overloader_factory() -> Callable:
 
 
 def overload_args(fn: Callable) -> Callable:
+    raise NotImplementedError("It's implemented, but not properly :-/")
+    # TODO Fix it
     """
     A decorator for overloading a function depending on it's provided arguments.
 
@@ -326,10 +328,10 @@ def overload_args(fn: Callable) -> Callable:
     Sadly it isn't supported by IDEs, but Python works with it.
 
     >>> @overload_args
-    >>> def my_func():
+    ... def my_func():
     ...     print("Hello world!")
     >>> @overload_args
-    >>> def my_func(name):
+    ... def my_func(name):
     ...     print(f"Hello {name}!")
     >>> my_func()
     Hello world!

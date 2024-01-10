@@ -1,9 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from typing import Iterable, TypeVar
-
-TByteBuffer = TypeVar("TByteBuffer", bound="ByteBuffer")
+from typing import Iterable, Self
 
 
 class ByteBuffer(Iterable[int]):
@@ -53,14 +51,14 @@ class ByteBuffer(Iterable[int]):
         self.pointer += amount
         return self.data[self.pointer - amount:self.pointer]
 
-    def writeByte(self, byte: int, i: int = -1) -> TByteBuffer:
+    def writeByte(self, byte: int, i: int = -1) -> Self:
         if i == -1:
             self.data.append(byte)
         else:
             self.data.insert(i, byte)
         return self
 
-    def write(self, data: Iterable[int], i: int = -1) -> TByteBuffer:
+    def write(self, data: Iterable[int], i: int = -1) -> Self:
         if i == -1:
             self.data.extend(data)
         else:
@@ -71,14 +69,14 @@ class ByteBuffer(Iterable[int]):
     def export(self) -> bytes:
         return bytes(self.data)
 
-    def reset(self, data: Iterable[int] | None = None) -> TByteBuffer:
+    def reset(self, data: Iterable[int] | None = None) -> Self:
         self.resetPointer()
         self.data.clear()
         if data is not None:
             self.data.extend(data)
         return self
 
-    def resetPointer(self) -> TByteBuffer:
+    def resetPointer(self) -> Self:
         self.pointer = 0
         return self
 

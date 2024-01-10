@@ -11,5 +11,6 @@ if __name__ == "__main__":
     from test.brainfuck import TestBrainFuck  # Test BrainFuck interpreter
     from test.thread_waiter import TestThreadWaiter  # Test thread pausing
     from test.typing_test import TestTyping  # Test typing
+    from test.test_bon import TestBON  # Test BON
 
     main()
