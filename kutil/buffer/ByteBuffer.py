@@ -19,6 +19,8 @@ class ByteBuffer(Iterable[int]):
         return self.data[self.pointer - 1]
 
     def read(self, amount: int) -> bytearray:
+        if amount == 0:
+            return bytearray()
         self.has(amount)
         self.pointer += amount
         return self.data[self.pointer - amount:self.pointer]
@@ -37,8 +39,14 @@ class ByteBuffer(Iterable[int]):
         raise IndexError
 
     def skip(self, amount: int):
+        assert amount > 0
         self.has(amount)
         self.pointer += amount
+
+    def back(self, amount: int):
+        assert amount > 0
+        self.has(-amount)
+        self.pointer -= amount
 
     def __len__(self) -> int:
         return len(self.data) - self.pointer
@@ -81,10 +89,14 @@ class ByteBuffer(Iterable[int]):
         return self
 
     def has(self, amount: int) -> bool:
-        if amount <= 0:
+        if amount == 0:
             raise ValueError("Invalid amount")
-        if len(self.data) < self.pointer + amount:
-            raise IndexError("Not enough bytes")
+        if amount < 0:
+            if -amount > self.pointer:
+                raise ValueError("Not enough bytes")
+        else:
+            if len(self.data) < self.pointer + amount:
+                raise IndexError("Not enough bytes")
         return True
 
     def __iter__(self):

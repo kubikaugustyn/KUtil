@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from enum import Enum
+from enum import Enum, unique
 from typing import Iterator, Optional
 from colorama import Fore, Style
 from kutil.language.Language import GenericLanguage
@@ -13,7 +13,7 @@ from kutil.language import InterpretedLanguage, Lexer, Parser, Interpreter, Inte
 from kutil.language.AST import AST, ASTNode
 from kutil.language.Token import TokenOutput, Token
 
-
+@unique
 class BFToken(Enum):  # Serves both as the token kind and a thing for the lexer
     INC_PTR = ">"  # Move the pointer to the right
     DEC_PTR = "<"  # Move the pointer to the left
@@ -34,7 +34,7 @@ class BFLexer(Lexer):
                 continue  # Any other character doesn't count
             yield Token(tokKind, char)
 
-
+@unique
 class BFNode(Enum):
     CONTROL = "control"
     LOOP = "loop"

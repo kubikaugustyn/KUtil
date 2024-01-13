@@ -1,21 +1,23 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+import zlib
 from abc import abstractmethod
 from typing import Any, Optional
 
 from kutil.buffer.TextOutput import TextOutput
+from kutil.io.file import readFile
 
 from kutil.language.AST import AST
+from kutil.language.BytecodeFile import BytecodeFile, CRC32MismatchError
 
 from kutil.language.Token import TokenOutput
 
 from kutil.language.Lexer import Lexer
 from kutil.language.Parser import Parser
 from kutil.language.Compiler import Compiler
-from kutil.language.Interpreter import Interpreter, InterpreterExitCode
+from kutil.language.Interpreter import Interpreter, InterpreterExitCode, BytecodeInterpreter
 from kutil.language.Error import InterpreterError
-from kutil.language.Bytecode import InstructionGenerator
 
 
 class GenericLanguage:
@@ -69,17 +71,31 @@ class InterpretedLanguage(GenericLanguage):
 
 class CompiledLanguage(GenericLanguage):
     compiler: Compiler
+    interpreter: BytecodeInterpreter
 
-    def __init__(self, lexer: Lexer, parser: Parser, compiler: Compiler):
+    def __init__(self, lexer: Lexer, parser: Parser, compiler: Compiler,
+                 interpreter: BytecodeInterpreter):
         super().__init__(lexer, parser)
         self.compiler = compiler
+        self.interpreter = interpreter
 
-    def run(self, inputCode: str) -> InstructionGenerator:
+    def compile(self, inputCode: str, outputFile: str = None) -> BytecodeFile:
+        if outputFile is None:
+            raise ValueError("No output file specified")
         ast: AST = super().run(inputCode)
-        return self.compileInner(ast)
+        return self.compileInner(ast, outputFile, zlib.crc32(inputCode.encode("utf-8")))
 
-    def compileInner(self, ast: AST) -> InstructionGenerator:
-        return self.compiler.compile(ast)
+    def run(self, inputCode: str, outputFile: str = None) -> \
+            tuple[InterpreterExitCode, InterpreterError | None]:
+        try:
+            file = self.compiler.bytecodeFile()
+            file.read(readFile(outputFile, "buffer"), inputCode.encode("utf-8"))
+        except (CRC32MismatchError, FileNotFoundError):
+            file = self.compile(inputCode, outputFile)
+        return self.interpreter.interpret(file)
+
+    def compileInner(self, ast: AST, outputFile: str, codeCRC32: int) -> BytecodeFile:
+        return self.compiler.compile(ast, outputFile, codeCRC32)
 
     @staticmethod
     @abstractmethod

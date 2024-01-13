@@ -1,11 +1,11 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from enum import Enum
+from enum import Enum, unique
 from kutil import ByteBuffer
 from kutil.buffer.Serializable import Serializable
 
-
+@unique
 class WSOpcode(Enum):
     CONTINUATION_FRAME = 0x0
     TEXT_FRAME = 0x1

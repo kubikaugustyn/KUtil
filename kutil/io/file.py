@@ -4,8 +4,10 @@ __author__ = "kubik.augustyn@post.cz"
 import json
 from typing import Literal, overload
 
-type OUTPUT_STR = Literal["text", "bytes", "bytearray", "json"]
-type OUTPUT = str | bytes | bytearray | dict
+from kutil.buffer.ByteBuffer import ByteBuffer
+
+type OUTPUT_STR = Literal["text", "bytes", "bytearray", "json", "buffer"]
+type OUTPUT = str | bytes | bytearray | dict | ByteBuffer
 
 
 @overload  # https://mypy.readthedocs.io/en/latest/more_types.html#function-overloading
@@ -24,6 +26,10 @@ def readFile(path: str, output: Literal["bytearray"], encoding: str = "utf-8") -
 def readFile(path: str, output: Literal["json"], encoding: str = "utf-8") -> dict: ...
 
 
+@overload
+def readFile(path: str, output: Literal["buffer"], encoding: str = "utf-8") -> ByteBuffer: ...
+
+
 def readFile(path: str, output: OUTPUT_STR = "text", encoding: str = "utf-8") -> OUTPUT:
     with open(path, "rb") as f:
         content = f.read()
@@ -35,6 +41,8 @@ def readFile(path: str, output: OUTPUT_STR = "text", encoding: str = "utf-8") ->
         return content.decode(encoding)
     elif output == "json":
         return json.loads(content.decode(encoding))
+    elif output == "buffer":
+        return ByteBuffer(content)
     else:
         raise ValueError("Bad output kind.")
 
@@ -48,6 +56,8 @@ def writeFile(path: str, data: OUTPUT, encoding: str = "utf-8"):
         content = data.encode(encoding)
     elif isinstance(data, dict):
         content = json.dumps(data).encode(encoding)
+    elif isinstance(data, ByteBuffer):
+        content = data.export()
     else:
         raise ValueError("Bad data kind.")
     with open(path, "wb+") as f:

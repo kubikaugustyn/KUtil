@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from enum import Enum
+from enum import Enum, unique
 from typing import Any, Optional
 
 from kutil.language.Error import ParserError
@@ -12,6 +12,7 @@ from kutil.language.Token import TokenOutput, Token
 from kutil.language.languages.paint_tryhard.PTLexer import PTToken, WorkKind
 
 
+@unique
 class PTNode(Enum):
     CONTRACT = "CONTRACT"
     WORK_KIND = "WORK_KIND"
@@ -22,7 +23,7 @@ class PTNode(Enum):
     PROOF_OF_WORK = "PROOF_OF_WORK"
     CONTRACT_CODE = "CONTRACT_CODE"
     C_SET_VAR = "C_SET_VAR"
-    C_SET_PROOF_OF_WORK = "C_SET_PROOF_OF_WORK"
+    C_GET_PROOF_OF_WORK = "C_GET_PROOF_OF_WORK"
     C_JOB_METHOD = "C_JOB_METHOD"
     C_JOB_END = "C_JOB_END"
 
@@ -76,8 +77,7 @@ class PTParser(Parser):
         hasCode = False
         hasEmployees = False
 
-        variables: dict[str, Any] = {}
-        powName: Optional[str] = None
+        variables: dict[str, Any] = {}  # Includes name of PoW
         employees: list[str] = []  # List of employee names
 
         def addNode(node: ASTNode) -> int:
@@ -121,10 +121,10 @@ class PTParser(Parser):
                 addNode(ASTNode(PTNode.VARIABLE, token.content))
                 variables[token.content[0]] = token.content[1]
             elif token.kind == PTToken.SET_PROOF_OF_WORK:
-                if powName is not None:
+                if token.content[0] in variables:
                     raise ParserError(ValueError(f"Bad {token} with return type already defined"))
                 addNode(ASTNode(PTNode.PROOF_OF_WORK, token.content))
-                powName = token.content[0]
+                variables[token.content[0]] = token.content[1]
             elif token.kind == PTToken.SET_EMPLOYEE:
                 if not hasEmployees:
                     raise ParserError(ValueError(f"Bad {token} when this employee"
@@ -160,8 +160,8 @@ class PTParser(Parser):
                 addNode(ASTNode(PTNode.C_SET_VAR, token.content))
             elif token.kind == PTToken.C_JOB_METHOD:
                 addNode(ASTNode(PTNode.C_JOB_METHOD, token.content))
-            elif token.kind == PTToken.C_SET_PROOF_OF_WORK:
-                addNode(ASTNode(PTNode.C_SET_PROOF_OF_WORK, token.content))
+            elif token.kind == PTToken.C_GET_PROOF_OF_WORK:
+                addNode(ASTNode(PTNode.C_GET_PROOF_OF_WORK, token.content))
             else:
                 print(token)
 

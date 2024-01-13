@@ -39,6 +39,7 @@ JOB IS IGNORE Indentation doesn't matter
     MOVE BRUSH TO BE 3 PIXELS FROM LEFT
     PUT THE BRUSH DOWN IGNORE Starts a line
     MOVE BRUSH TO BE 3 PIXELS FROM RIGHT
+    IGNORE PUT THE BRUSH UP - no need at the end of method
     THROW THE BRUSH OUT OF THE WINDOW IGNORE The end, must be used, nothing after this is code but contract
 END OF CONTRACT
 

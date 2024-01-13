@@ -1,15 +1,17 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from enum import Enum
+from enum import Enum, unique
 from typing import Iterator, Optional
 
 from kutil.language.Error import LexerError
 
 from kutil.language.Lexer import Lexer
 from kutil.language.Token import TokenOutput, Token
+from kutil.language.languages.paint_tryhard.jobs import parseJobMethod
 
 
+@unique
 class WorkKind(Enum):
     # Work kind = "code string", "code end (token C_JOB_END)"
     BADASS = "BADASS", "?"
@@ -34,6 +36,7 @@ def getWorkKind(name: str) -> WorkKind:
     raise ValueError(f"Work kind called {name} wasn't found")
 
 
+@unique
 class PTToken(Enum):  # Just the token kind
     START_CONTRACT = 1
     SET_WORK_KIND = 2
@@ -45,8 +48,8 @@ class PTToken(Enum):  # Just the token kind
     SET_CODE = 8
     # Code
     C_SET_VAR = 9
-    C_SET_PROOF_OF_WORK = 10
-    C_JOB_METHOD = 11  # Method special for work kind, saved as text
+    C_GET_PROOF_OF_WORK = 10
+    C_JOB_METHOD = 11  # Method special for work kind, saved as another Enum + Any data
     C_JOB_END = 12
     # Code end
     END_CONTRACT = 13
@@ -74,7 +77,8 @@ class PTLexer(Lexer):
             if not line:
                 continue
             # The token logic itself
-            token = self.createJobToken(line, workKind) if isCode else self.createToken(line)
+            token = self.createJobToken(line, workKind) if isCode else self.createToken(
+                line)
             if token is None:
                 continue
             if token.kind == PTToken.SET_WORK_KIND:
@@ -152,9 +156,14 @@ class PTLexer(Lexer):
             employee_name = line[28:line.index(" WORKED AS ")]
             val = line[line.index(" WORKED AS ") + 11:]
 
-            kind = PTToken.C_SET_PROOF_OF_WORK
+            kind = PTToken.C_GET_PROOF_OF_WORK
             content = employee_name, val
         else:
             kind = PTToken.C_JOB_METHOD
-            content = line
+            try:
+                content = parseJobMethod(workKind, line)
+            except LexerError as e:
+                raise e
+            except Exception as e:
+                raise LexerError([e, ValueError(f"Line: {ascii(line)}")])
         return Token(kind, content)

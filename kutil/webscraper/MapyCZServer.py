@@ -8,7 +8,7 @@ from typing import Optional
 import requests  # Sadly, Mapy.cz only supports HTTPS, which KUtil doesn't
 from requests.cookies import RequestsCookieJar
 import os
-from enum import Enum
+from enum import Enum, unique
 from threading import Thread, enumerate as enum_threads
 
 from kutil.threads.ThreadWaiter import ThreadWaiter
@@ -21,6 +21,7 @@ from kutil.protocol.URLSearchParams import URLSearchParams
 from kutil.webscraper.WebScraperServer import WebScraperServer
 
 
+@unique
 class MapSet(Enum):
     ZAKLADNI = "basic"
     TURISTICKA = "outdoor"
