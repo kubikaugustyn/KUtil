@@ -8,7 +8,6 @@ from kutil.language.Error import LexerError
 
 from kutil.language.Lexer import Lexer
 from kutil.language.Token import TokenOutput, Token
-from kutil.language.languages.paint_tryhard.jobs import parseJobMethod
 
 
 @unique
@@ -159,6 +158,9 @@ class PTLexer(Lexer):
             kind = PTToken.C_GET_PROOF_OF_WORK
             content = employee_name, val
         else:
+            # I hope it's cached
+            from kutil.language.languages.paint_tryhard.jobs import parseJobMethod
+
             kind = PTToken.C_JOB_METHOD
             try:
                 content = parseJobMethod(workKind, line)

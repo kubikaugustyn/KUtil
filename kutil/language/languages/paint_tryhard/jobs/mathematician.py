@@ -5,6 +5,7 @@ from enum import Enum, unique
 from typing import Any
 
 from kutil.language.Error import LexerError
+from kutil.language.languages.paint_tryhard.PTInterpreter import Employee
 
 
 @unique
@@ -38,3 +39,26 @@ def parseMathematicianMethod(code: str) -> tuple[MathematicianInstruction, Any]:
         return MathematicianInstruction[f"CALC_{op}"], (resultName, first, second)
 
     raise LexerError(ValueError(f"Invalid code: {ascii(code)}"))
+
+
+def execMathematicianInstruction(self: Employee, instruction: MathematicianInstruction):
+    if instruction in (MathematicianInstruction.CALC_ADD,
+                       MathematicianInstruction.CALC_SUBTRACT,
+                       MathematicianInstruction.CALC_MULTIPLY,
+                       MathematicianInstruction.CALC_DIVIDE):
+        varName, a, b = self.stack.pop()
+        a = self.resolve(self.resolve(a))  # Double resolve :-/
+        b = self.resolve(self.resolve(b))
+
+        if instruction == MathematicianInstruction.CALC_ADD:
+            result = a + b
+        elif instruction == MathematicianInstruction.CALC_SUBTRACT:
+            result = a - b
+        elif instruction == MathematicianInstruction.CALC_MULTIPLY:
+            result = a * b
+        else:
+            result = a / b
+
+        self.variables[varName] = result
+    else:
+        self.throw(NotImplementedError(f"Invalid instruction: {instruction}"))

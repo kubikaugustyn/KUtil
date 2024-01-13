@@ -5,6 +5,7 @@ from enum import Enum, unique
 from typing import Any
 
 from kutil.language.Error import LexerError
+from kutil.language.languages.paint_tryhard.PTInterpreter import Employee
 
 
 @unique
@@ -45,3 +46,20 @@ def parseBossMethod(code: str) -> tuple[BossInstruction, Any]:
         varName = code[code.index(" WORKED AS ") + 11:]
         return BossInstruction.STORE_EMPLOYEE_RETURN_VALUE, (name, varName)
     raise LexerError(ValueError(f"Invalid code: {ascii(code)}"))
+
+
+def execBossInstruction(self: Employee, instruction: BossInstruction):
+    if instruction == BossInstruction.SET_EMPLOYEE_ARGUMENT_VAR:
+        name, argName, varName = self.stack.pop()
+        self.employees[name].arguments[argName] = self.variables[varName]
+    elif instruction == BossInstruction.SET_EMPLOYEE_ARGUMENT_LITERAL:
+        name, argName, val = self.stack.pop()
+        self.employees[name].arguments[argName] = self.resolve(val)
+    elif instruction == BossInstruction.RUN_EMPLOYEE:
+        name = self.stack.pop()
+        self.employees[name].call()
+    elif instruction == BossInstruction.WAIT_UNTIL_EMPLOYEE_DONE:
+        name = self.stack.pop()
+        self.waitUntilEmployeeDone(name)
+    else:
+        self.throw(NotImplementedError(f"Invalid instruction: {instruction}"))

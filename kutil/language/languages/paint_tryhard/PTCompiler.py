@@ -27,8 +27,13 @@ class PTInstruction(Instruction):  # Stack #x --> xth item from the top of the s
     JOB_METHOD = 0x06  # Method special for work kind, saved as another Enum + Any data (stack #1)
 
 
-def PTInstructionParser(instruction: Instruction, buff: ByteBuffer) -> Optional[bytes]:
-    pass
+def PTInstructionParser(self: Bytecode, instruction: PTInstruction, buff: ByteBuffer) \
+        -> Optional[bytes]:
+    if instruction == PTInstruction.LOAD_CONST:
+        return buff.read(4)
+    elif instruction == PTInstruction.JOB_METHOD:
+        return buff.read(1)
+    return None
 
 
 class PTBytecode(Bytecode):

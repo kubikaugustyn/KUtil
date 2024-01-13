@@ -5,6 +5,7 @@ from enum import Enum, unique
 from typing import Any
 
 from kutil.language.Error import LexerError
+from kutil.language.languages.paint_tryhard.PTInterpreter import Employee
 
 
 @unique
@@ -28,6 +29,19 @@ class PainterInstruction(Enum):
     DRAW_SQUARE = 0x10  # Width and height depend on brush size
     START_LINE = 0x11
     END_LINE = 0x12
+
+
+@unique
+class Color(Enum):
+    # NAME = (B, G, R)
+    BLACK = (0, 0, 0)
+    WHITE = (255, 255, 255)
+    RED = (0, 0, 255)
+    GREEN = (0, 255, 0)
+    BLUE = (255, 0, 0)
+    CYAN = (255, 255, 0)
+    MAGENTA = (255, 0, 255)
+    YELLOW = (0, 255, 255)
 
 
 def parsePainterMethod(code: str) -> tuple[PainterInstruction, Any]:
@@ -96,3 +110,16 @@ def parsePainterMethod(code: str) -> tuple[PainterInstruction, Any]:
         return PainterInstruction.END_LINE, None
 
     raise LexerError(ValueError(f"Invalid code: {ascii(code)}"))
+
+
+def execPainterInstruction(self: Employee, instruction: PainterInstruction):
+    if instruction == PainterInstruction.RESIZE_WIDTH:
+        self.canvas.resize(self.resolve(self.stack.pop()), self.canvas.height)
+    elif instruction == PainterInstruction.RESIZE_HEIGHT:
+        self.canvas.resize(self.canvas.width, self.resolve(self.stack.pop()))
+    elif instruction == PainterInstruction.FILL_WHOLE:
+        color = self.resolve(self.stack.pop())
+        color = Color[color.upper()]
+        self.canvas.fill(color.value)
+    else:
+        self.throw(NotImplementedError(f"Invalid instruction: {instruction}"))

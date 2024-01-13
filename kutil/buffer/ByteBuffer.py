@@ -1,6 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+import copy
 from typing import Iterable, Self
 
 
@@ -98,6 +99,12 @@ class ByteBuffer(Iterable[int]):
             if len(self.data) < self.pointer + amount:
                 raise IndexError("Not enough bytes")
         return True
+
+    def copy(self) -> Self:
+        copyBuff = ByteBuffer()
+        copyBuff.data = copy.copy(self.data)
+        copyBuff.pointer = self.pointer
+        return copyBuff
 
     def __iter__(self):
         """Iterates over all bytes of the buffer, ignoring and not mutating the pointer."""

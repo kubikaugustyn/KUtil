@@ -60,6 +60,7 @@ START OF CONTRACT
 WORK KIND IS THE BOSS IGNORE Can also be BOSS, but THE BOSS is the entry point
 NAME IS Rick Astley
 HIS EMPLOYEE IS Bob Smith IGNORE Can be present multiple times
+HIS EMPLOYEE IS Bob Counter
 HE REMEMBERS redraw_count WHICH IS 0 BY DEFAULT
 JOB IS
     TELL Bob Counter THAT n IS redraw_count IGNORE n = redraw_count

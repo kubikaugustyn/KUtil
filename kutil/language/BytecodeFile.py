@@ -34,11 +34,9 @@ class Bytecode(ABC):
     instructionClass: type[Instruction] = Instruction
 
     buff: ByteBuffer
-    instructionGenerator: Optional[InstructionGenerator]
 
     def __init__(self):
         self.buff = ByteBuffer()
-        self.instructionGenerator = None
 
     def load(self, fileName: Optional[str] = None, file: Optional[BinaryIO] = None,
              buff: Optional[ByteBuffer] = None):
@@ -50,7 +48,7 @@ class Bytecode(ABC):
             pass
         else:
             raise ValueError("No argument given")
-        self.instructionGenerator = self._generateInstructions(buff)
+        self.buff = buff
 
     def _generateInstructions(self, buff: ByteBuffer) -> InstructionGenerator:
         while len(buff) > 0:
@@ -66,9 +64,10 @@ class Bytecode(ABC):
         if additionalBytes is not None:
             buff.write(additionalBytes)
 
-    @property
-    def next(self) -> tuple[Instruction, Optional[bytes]]:
-        return next(self.instructionGenerator)
+    def __iter__(self):
+        buff: ByteBuffer = self.buff.copy()
+        buff.resetPointer()
+        return self._generateInstructions(buff)
 
     def write(self, source: InstructionGenerator, fileName: Optional[str] = None,
               file: Optional[BinaryIO] = None, buff: Optional[ByteBuffer] = None):
