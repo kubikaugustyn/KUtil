@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 import zlib
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Optional
 
 from kutil.buffer.TextOutput import TextOutput
 from kutil.io.file import readFile

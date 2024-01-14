@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "KUtil"
+version = "0.0.1"
+authors = [
+    { name = "Jakub Augustýn", email = "kubik.augustyn@post.cz" },
+    { name = "Radek Augustýn", email = "raugustyn@post.cz" },
+]
+description = "Kuba's Python Utilities"
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/kubikaugustyn/KUtil"
+Issues = "https://github.com/kubikaugustyn/KUtil/issues"
