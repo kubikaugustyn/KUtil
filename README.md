@@ -5,9 +5,14 @@ Made for Python
 
 # Installation from PyPI
 
-```cmd
-pip3 install kutil
-```
+Sadly, the name *kutil* is already used, see [#3](https://github.com/kubikaugustyn/KUtil/issues/3) for more info, but
+right now KUtil cannot be installed from PyPI.
+
+[//]: # (```cmd)
+
+[//]: # (pip3 install kutil)
+
+[//]: # (```)
 
 # Installation
 

@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 from kutil import InterpreterExitCode, InterpreterError, ThreadWaiter
 
-from src.kutil.language.Interpreter import BytecodeInterpreter
+from kutil.language.Interpreter import BytecodeInterpreter
 from kutil.language.languages.paint_tryhard.Canvas import Canvas
 from kutil.language.languages.paint_tryhard.Employee import Employee
 from kutil.language.languages.paint_tryhard.PTCompiler import PTBytecodeFile
