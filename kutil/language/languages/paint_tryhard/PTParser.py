@@ -7,6 +7,7 @@ from typing import Any, Optional
 from kutil.language.Error import ParserError
 
 from kutil.language.AST import AST, ASTNode
+from kutil.language.Options import CompiledLanguageOptions
 from kutil.language.Parser import Parser
 from kutil.language.Token import TokenOutput, Token
 from kutil.language.languages.paint_tryhard.PTLexer import PTToken, WorkKind
@@ -53,7 +54,7 @@ class ContractEmployeesNode(ASTNode):
 
 
 class PTParser(Parser):
-    def parseInner(self, tokens: TokenOutput) -> AST:
+    def parseInner(self, tokens: TokenOutput, options: CompiledLanguageOptions) -> AST:
         ast: AST = AST()
         # for token in tokens:
         #     print(token)

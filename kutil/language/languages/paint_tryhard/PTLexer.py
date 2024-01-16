@@ -7,6 +7,7 @@ from typing import Iterator, Optional
 from kutil.language.Error import LexerError
 
 from kutil.language.Lexer import Lexer
+from kutil.language.Options import CompiledLanguageOptions
 from kutil.language.Token import TokenOutput, Token
 
 
@@ -64,7 +65,8 @@ class UnknownTokenError(LexerError):
 
 
 class PTLexer(Lexer):
-    def tokenizeInner(self, inputCode: str, output: TokenOutput) -> Iterator[Token]:
+    def tokenizeInner(self, inputCode: str, options: CompiledLanguageOptions,
+                      output: TokenOutput) -> Iterator[Token]:
         workKind: WorkKind = WorkKind.BOSS
         isCode: bool = False
 

@@ -10,6 +10,7 @@ from kutil.io.file import readFile
 
 from kutil.language.AST import AST
 from kutil.language.BytecodeFile import BytecodeFile, CRC32MismatchError
+from kutil.language.Options import Options, CompiledLanguageOptions, InterpretedLanguageOptions
 
 from kutil.language.Token import TokenOutput
 
@@ -21,6 +22,8 @@ from kutil.language.Error import InterpreterError
 
 
 class GenericLanguage:
+    optionsClass: type[Options] = Options
+
     lexer: Lexer
     parser: Parser
 
@@ -28,16 +31,18 @@ class GenericLanguage:
         self.lexer = lexer
         self.parser = parser
 
-    def run(self, inputCode: str) -> AST:
-        tokens: TokenOutput = self.tokenizeInner(inputCode)
-        ast: AST = self.parseInner(tokens)
+    def run(self, inputCode: str, options: Options) -> AST:
+        if options is None:
+            options = self.optionsClass()
+        tokens: TokenOutput = self.tokenizeInner(inputCode, options)
+        ast: AST = self.parseInner(tokens, options)
         return ast
 
-    def tokenizeInner(self, inputCode: str) -> TokenOutput:
-        return self.lexer.tokenize(inputCode)
+    def tokenizeInner(self, inputCode: str, options: Options) -> TokenOutput:
+        return self.lexer.tokenize(inputCode, options)
 
-    def parseInner(self, tokens: TokenOutput) -> AST:
-        return self.parser.parse(tokens)
+    def parseInner(self, tokens: TokenOutput, options: Options) -> AST:
+        return self.parser.parse(tokens, options)
 
     @staticmethod
     @abstractmethod
@@ -52,16 +57,17 @@ class InterpretedLanguage(GenericLanguage):
         super().__init__(lexer, parser)
         self.interpreter = interpreter
 
-    def run(self, inputCode: str, output: Optional[TextOutput] = None) -> \
+    def run(self, inputCode: str, options: InterpretedLanguageOptions,
+            output: Optional[TextOutput] = None) -> \
             tuple[InterpreterExitCode, InterpreterError | None]:
-        ast: AST = super().run(inputCode)
+        ast: AST = super().run(inputCode, options)
         if output is None:
             output = TextOutput()
-        return self.interpretInner(ast, output)
+        return self.interpretInner(ast, output, options)
 
-    def interpretInner(self, ast: AST, output: TextOutput) -> \
+    def interpretInner(self, ast: AST, output: TextOutput, options: InterpretedLanguageOptions) -> \
             tuple[InterpreterExitCode, InterpreterError | None]:
-        return self.interpreter.interpret(ast, output)
+        return self.interpreter.interpret(ast, output, options)
 
     @staticmethod
     @abstractmethod
@@ -79,23 +85,25 @@ class CompiledLanguage(GenericLanguage):
         self.compiler = compiler
         self.interpreter = interpreter
 
-    def compile(self, inputCode: str, outputFile: str = None) -> BytecodeFile:
+    def compile(self, inputCode: str, options: CompiledLanguageOptions,
+                outputFile: str = None) -> BytecodeFile:
         if outputFile is None:
             raise ValueError("No output file specified")
-        ast: AST = super().run(inputCode)
-        return self.compileInner(ast, outputFile, zlib.crc32(inputCode.encode("utf-8")))
+        ast: AST = super().run(inputCode, options)
+        return self.compileInner(ast, outputFile, zlib.crc32(inputCode.encode("utf-8")), options)
 
-    def run(self, inputCode: str, outputFile: str = None) -> \
+    def run(self, inputCode: str, options: CompiledLanguageOptions, outputFile: str = None) -> \
             tuple[InterpreterExitCode, InterpreterError | None]:
         try:
             file = self.compiler.bytecodeFile()
             file.read(readFile(outputFile, "buffer"), inputCode.encode("utf-8"))
         except (CRC32MismatchError, FileNotFoundError):
-            file = self.compile(inputCode, outputFile)
+            file = self.compile(inputCode, options, outputFile)
         return self.interpreter.interpret(file)
 
-    def compileInner(self, ast: AST, outputFile: str, codeCRC32: int) -> BytecodeFile:
-        return self.compiler.compile(ast, outputFile, codeCRC32)
+    def compileInner(self, ast: AST, outputFile: str, codeCRC32: int,
+                     options: CompiledLanguageOptions) -> BytecodeFile:
+        return self.compiler.compile(ast, outputFile, codeCRC32, options)
 
     @staticmethod
     @abstractmethod

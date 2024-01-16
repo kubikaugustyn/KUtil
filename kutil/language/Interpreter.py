@@ -10,6 +10,7 @@ from kutil.language.BytecodeFile import BytecodeFile
 from kutil.language.Error import InterpreterError
 
 from kutil.language.AST import AST
+from kutil.language.Options import InterpretedLanguageOptions
 
 
 @unique
@@ -21,12 +22,13 @@ class InterpreterExitCode(Enum):
 
 class Interpreter(ABC):
     @abstractmethod
-    def interpret(self, ast: AST, output: TextOutput) \
+    def interpret(self, ast: AST, output: TextOutput, options: InterpretedLanguageOptions) \
             -> tuple[InterpreterExitCode, InterpreterError | None]:
         """
         Interprets the given AST and returns the exit code. Never throws an error.
         :param ast: The code described by an AST
         :param output: The text output that serves as a console for the language
+        :param options: The options for the interpreter
         :return: The exit code and the error (optional)
         """
         raise NotImplementedError("You must implement the interpret method")

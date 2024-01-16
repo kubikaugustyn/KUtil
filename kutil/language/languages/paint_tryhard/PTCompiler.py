@@ -12,6 +12,7 @@ from kutil.language.AST import AST, ASTNode
 from kutil.language.BytecodeFile import InstructionGenerator, Instruction, Bytecode, BytecodeFile, \
     CRC32MismatchError
 from kutil.language.Compiler import Compiler
+from kutil.language.Options import CompiledLanguageOptions
 from kutil.language.languages.paint_tryhard.PTLexer import WorkKind, PT_DIGITS, PT_STR
 from kutil.language.languages.paint_tryhard.PTParser import PTNode, ContractCodeNode
 
@@ -204,7 +205,8 @@ class PTBytecodeFile(BytecodeFile):
 class PTCompiler(Compiler):
     bytecodeFile = PTBytecodeFile
 
-    def compileInner(self, ast: AST, codeCRC32: int) -> PTBytecodeFile:
+    def compileInner(self, ast: AST, codeCRC32: int,
+                     options: CompiledLanguageOptions) -> PTBytecodeFile:
         file: PTBytecodeFile = PTBytecodeFile()
         file.crc32 = codeCRC32
         self.compileCode(ast, file)

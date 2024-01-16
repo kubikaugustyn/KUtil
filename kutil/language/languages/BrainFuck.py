@@ -4,6 +4,7 @@ __author__ = "kubik.augustyn@post.cz"
 from enum import Enum, unique
 from typing import Iterator, Optional
 from colorama import Fore, Style
+
 from kutil.language.Language import GenericLanguage
 
 from kutil.buffer import TextOutput, BidirectionalByteArray
@@ -12,6 +13,41 @@ from kutil.language import InterpretedLanguage, Lexer, Parser, Interpreter, Inte
     InterpreterError
 from kutil.language.AST import AST, ASTNode
 from kutil.language.Token import TokenOutput, Token
+from kutil.language.Options import UnifiedOptions
+
+
+class BFMemory:
+    data: BidirectionalByteArray
+    pointer: int
+
+    def __init__(self):
+        self.data = BidirectionalByteArray()
+        self.pointer = 0
+
+    def read(self):
+        return self.data.read(self.pointer)
+
+    def write(self, byte: int):
+        self.data.writeByte(byte & 0xFF, self.pointer)
+
+    def add(self):
+        self.write(self.read() + 1)
+
+    def sub(self):
+        self.write(self.read() - 1)
+
+    def left(self):
+        self.pointer -= 1
+
+    def right(self):
+        self.pointer += 1
+
+
+class BFOptions(UnifiedOptions):
+    memory: BFMemory
+
+    def __init__(self, memory: BFMemory):
+        self.memory = memory
 
 
 @unique
@@ -27,7 +63,8 @@ class BFToken(Enum):  # Serves both as the token kind and a thing for the lexer
 
 
 class BFLexer(Lexer):
-    def tokenizeInner(self, inputCode: str, output: TokenOutput) -> Iterator[Token]:
+    def tokenizeInner(self, inputCode: str, options: BFOptions, output: TokenOutput) \
+            -> Iterator[Token]:
         for char in inputCode:
             try:
                 tokKind: BFToken = BFToken(char)
@@ -59,7 +96,7 @@ class LoopNode(ASTNode):
 
 
 class BFParser(Parser):
-    def parseInner(self, tokens: TokenOutput) -> AST:
+    def parseInner(self, tokens: TokenOutput, options: BFOptions) -> AST:
         ast: AST = AST()
         rootNodes: list[int] = self.parseLoop(tokens, ast, True).data
         for nodeI in rootNodes:
@@ -90,44 +127,15 @@ class BFParser(Parser):
         return LoopNode(content)
 
 
-class BFMemory:
-    data: BidirectionalByteArray
-    pointer: int
-
-    def __init__(self):
-        self.data = BidirectionalByteArray()
-        self.pointer = 0
-
-    def read(self):
-        return self.data.read(self.pointer)
-
-    def write(self, byte: int):
-        self.data.writeByte(byte & 0xFF, self.pointer)
-
-    def add(self):
-        self.write(self.read() + 1)
-
-    def sub(self):
-        self.write(self.read() - 1)
-
-    def left(self):
-        self.pointer -= 1
-
-    def right(self):
-        self.pointer += 1
-
-
 class InterpreterRecursionError(InterpreterError):
     msg = "Failed to interpret - recursion error"
 
 
 class BFInterpreter(Interpreter):
-    def interpret(self, ast: AST, output: TextOutput, memory: BFMemory | None = None) -> \
+    def interpret(self, ast: AST, output: TextOutput, options: BFOptions) -> \
             tuple[InterpreterExitCode, InterpreterError | None]:
-        if memory is None:
-            memory: BFMemory = BFMemory()
         try:
-            self.interpretThing(ast, list(ast.rootNodes()), memory, output)
+            self.interpretThing(ast, list(ast.rootNodes()), options.memory, output)
         except RecursionError as e:
             return InterpreterExitCode.WARNING, InterpreterRecursionError(e)
         except Exception as e:
@@ -185,19 +193,6 @@ class BrainFuck(InterpretedLanguage):
     def __init__(self):
         super().__init__(BFLexer(), BFParser(), BFInterpreter())
 
-    def run(self, inputCode: str, output: Optional[TextOutput] = None,
-            memory: BFMemory | None = None) -> \
-            tuple[InterpreterExitCode, InterpreterError | None]:
-        ast: AST = GenericLanguage.run(self, inputCode)
-        if output is None:
-            output = TextOutput()
-        return self.interpretInner(ast, output, memory)
-
-    def interpretInner(self, ast: AST, output: TextOutput, memory: BFMemory | None = None) -> \
-            tuple[InterpreterExitCode, InterpreterError | None]:
-        assert isinstance(self.interpreter, BFInterpreter)
-        return self.interpreter.interpret(ast, output, memory)
-
     @staticmethod
     def name() -> str:
         return "BrainFuck"
@@ -206,7 +201,8 @@ class BrainFuck(InterpretedLanguage):
     def fuck(inputCode: str, callPrint: bool = True) -> str:
         output: TextOutput = TextOutput(encoding="ascii", callPrint=callPrint)
         language: BrainFuck = BrainFuck()
-        exitCode, error = language.run(inputCode, output)
+        options: BFOptions = BFOptions(BFMemory())
+        exitCode, error = language.run(inputCode, options, output)
         # Handle errors
         if exitCode != InterpreterExitCode.OK:
             raise error
@@ -233,7 +229,8 @@ if __name__ == '__main__':
         code = input("Enter code: ")
         print("=" * 5, "CODE START", "=" * 5)
         memory: BFMemory = BFMemory()
-        exitCode, the_error = language.run(code, output, memory)
+        options: BFOptions = BFOptions(memory)
+        exitCode, the_error = language.run(code, options, output)
         print("\n" + "=" * 5, " CODE END ", "=" * 5)
         print(f"Program finished with exit code {exitCode.name}")
         if the_error is not None:

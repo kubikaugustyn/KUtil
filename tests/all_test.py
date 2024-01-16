@@ -12,5 +12,6 @@ if __name__ == "__main__":
     from tests.thread_waiter import TestThreadWaiter  # Test thread pausing
     from tests.typing_test import TestTyping  # Test typing
     from tests.test_bon import TestBON  # Test BON
+    from tests.test_js import TestJavascript  # Test JS
 
     main()

@@ -26,5 +26,5 @@ folder
 using command like this:
 
 ```console
-mklink /d C:\Python312\Lib\kutil "C:\Users\user\path\to\folder\KUtil\src\kutil"
+mklink /d C:\Python312\Lib\kutil "C:\Users\user\path\to\folder\KUtil\kutil"
 ```

@@ -1,0 +1,1 @@
+This is a modified (updated) version of https://github.com/Kronuz/esprima-python/ but with KUtil utils and code style.
