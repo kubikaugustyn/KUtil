@@ -29,6 +29,8 @@ from enum import Enum, unique
 
 @unique
 class JSNode(Enum):  # ASTNode type
+    UnparsedDummy = "UnparsedDummy"
+
     AssignmentExpression = "AssignmentExpression"
     AssignmentPattern = "AssignmentPattern"
     ArrayExpression = "ArrayExpression"

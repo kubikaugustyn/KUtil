@@ -22,6 +22,10 @@ class Javascript(GenericLanguage):
         super().__init__(JSLexer(), JSParser())
 
     def run(self, inputCode: str, options: Options) -> AST:
+        # Both are one-use
+        self.lexer = JSLexer()
+        self.parser = JSParser()
+
         # This is a bit different from usual classes
         if options is None:
             options = self.optionsClass()

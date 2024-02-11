@@ -2,14 +2,15 @@
 __author__ = "kubik.augustyn@post.cz"
 
 import json
-from typing import Literal, overload
 
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.typing import FinalStr, Final, Literal, overload
 
 type OUTPUT_STR = Literal["text", "bytes", "bytearray", "json", "buffer"]
 type OUTPUT = str | bytes | bytearray | dict | ByteBuffer
 
 
+# Read file
 @overload  # https://mypy.readthedocs.io/en/latest/more_types.html#function-overloading
 def readFile(path: str, output: Literal["text"], encoding: str = "utf-8") -> str: ...
 
@@ -47,7 +48,8 @@ def readFile(path: str, output: OUTPUT_STR = "text", encoding: str = "utf-8") ->
         raise ValueError("Bad output kind.")
 
 
-def writeFile(path: str, data: OUTPUT, encoding: str = "utf-8"):
+# Write file
+def writeFile(path: str, data: OUTPUT, encoding: str = "utf-8") -> None:
     if isinstance(data, bytes):
         content = data
     elif isinstance(data, bytearray):
@@ -62,3 +64,44 @@ def writeFile(path: str, data: OUTPUT, encoding: str = "utf-8"):
         raise ValueError("Bad data kind.")
     with open(path, "wb+") as f:
         f.write(content)
+
+
+# Newline stuff
+type NL_TYPE = Literal["CR", "LF", "CRLF"]
+CR: FinalStr = "\r"  # Carriage return
+LF: FinalStr = "\n"  # Line feed
+CRLF: FinalStr = "\r\n"  # CRLF
+bCR: Final[bytes] = b"\r"  # Bytes carriage return
+bLF: Final[bytes] = b"\n"  # Bytes line feed
+bCRLF: Final[bytes] = b"\r\n"  # Bytes CRLF
+cCR: Final[int] = ord("\r")  # Char carriage return
+cLF: Final[int] = ord("\n")  # Char line feed
+
+NL: str = CRLF  # Newline
+bNL: bytes = bCRLF  # Bytes newline
+
+
+def changeNewline(nlType: NL_TYPE) -> None:
+    """
+    Changes the newline used.
+    :param nlType: The new type
+    """
+    global NL, bNL
+    if nlType == "CR":
+        NL, bNL = CR, bCR
+    elif nlType == "LF":
+        NL, bNL = LF, bLF
+    elif nlType == "CRLF":
+        NL, bNL = CRLF, bCRLF
+    else:
+        raise ValueError
+
+
+__all__ = [
+    "readFile", "writeFile",
+    "CR", "LF", "CRLF",
+    "bCR", "bLF", "bCRLF",
+    "cCR", "cLF",
+    "NL", "bNL",
+    "changeNewline"
+]

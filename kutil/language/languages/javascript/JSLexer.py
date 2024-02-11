@@ -169,7 +169,9 @@ class JSLexer(OneUseLexer):
                 end=Position()
             )
         else:
-            raise NotImplementedError("loc is not defined")
+            # Unused anyway
+            loc = SourceLocation(Position(), Position())
+            start = 0
 
         while not self.eof():
             ch = self.source[self.index]
@@ -224,7 +226,9 @@ class JSLexer(OneUseLexer):
                 end=Position()
             )
         else:
-            raise NotImplementedError("loc is not defined")
+            # Unused anyway
+            loc = SourceLocation(Position(), Position())
+            start = 0
 
         while not self.eof():
             ch = self.source[self.index]
@@ -357,7 +361,7 @@ class JSLexer(OneUseLexer):
 
     # https://tc39.github.io/ecma262/#sec-keywords
 
-    def isKeyword(self, id):
+    def isKeyword(self, id: str):
         return id in self._isKeywordSet
 
     _isKeywordSet = {
@@ -584,8 +588,13 @@ class JSLexer(OneUseLexer):
                 ':',
                 '?',
                 '~',
-        ):
+        ) and self.source[self.index:self.index + 2] != "??":
+            # Make sure nullish coalescent operator isn't missed
             self.index += 1
+            if string == "?" and self.source[self.index] == ".":
+                # Optional chaining operator: ?.
+                self.index += 1
+                string = "?."
 
         else:
             # 4-character punctuator.
@@ -596,22 +605,24 @@ class JSLexer(OneUseLexer):
 
                 # 3-character punctuators.
                 string = string[:3]
-                if string in (
-                        '===', '!==', '>>>',
-                        '<<=', '>>=', '**='
-                ):
+                if string in {
+                    '===', '!==', '>>>',
+                    '<<=', '>>=', '**=',
+                    '&&=', '||=', '??='
+                }:
                     self.index += 3
                 else:
 
                     # 2-character punctuators.
                     string = string[:2]
-                    if string in (
-                            '&&', '||', '==', '!=',
-                            '+=', '-=', '*=', '/=',
-                            '++', '--', '<<', '>>',
-                            '&=', '|=', '^=', '%=',
-                            '<=', '>=', '=>', '**',
-                    ):
+                    if string in {
+                        '&&', '||', '==', '!=',
+                        '+=', '-=', '*=', '/=',
+                        '++', '--', '<<', '>>',
+                        '&=', '|=', '^=', '%=',
+                        '<=', '>=', '=>', '**',
+                        "??"
+                    }:
                         self.index += 2
                     else:
 
@@ -1139,7 +1150,12 @@ class JSLexer(OneUseLexer):
 
         pattern: str = self.scanRegExpBody()
         flags: str = self.scanRegExpFlags()
-        value: re.Pattern = self.testRegExp(pattern, flags)
+        try:
+            value: re.Pattern = self.testRegExp(pattern, flags)
+        except Exception:
+            # TODO This is just a temporary patch
+            # Check re.compile(r"/\1/")
+            value: None = None
 
         return RawToken(
             kind=JSToken.RegularExpression,
@@ -1202,6 +1218,18 @@ class JSLexer(OneUseLexer):
                 return self.scanIdentifier()
 
         return self.scanPunctuator()
+
+    # A way to skip a block
+    def skipCurlyBlock(self):
+        # TODO
+        target = len(self.curlyStack)
+        self.scanComments()
+        self.lex()
+        if len(self.curlyStack) != target + 1:
+            raise ValueError("You didn't call skipCurlyBlock right before the curly bracket")
+        while len(self.curlyStack) > target:
+            self.scanComments()
+            self.lex()
 
 # https://github.com/Kronuz/esprima-python/blob/master/esprima/esprima.py
 # https://github.com/Kronuz/esprima-python/blob/master/esprima/parser.py

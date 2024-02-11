@@ -6,7 +6,11 @@ __author__ = "kubik.augustyn@post.cz"
 
 import inspect
 import sys
-from typing import Optional, overload, Iterable, Callable
+from typing import *
+
+# Exported things
+from frozenlist import FrozenList
+from itertools import chain
 
 
 # Class decorators
@@ -362,3 +366,28 @@ def overload_args(fn: Callable) -> Callable:
         overloads.append(overloadInfo)
 
     return overloader
+
+
+# Useful functions
+def dictUnion(*dicts: MutableMapping):
+    """
+    Given a list of dictionaries, return a dictionary containing all the key-value pairs of the given
+    dictionaries, but with the last dictionary to contain the key determining the value.
+    :param dicts:
+    :return:
+    """
+    if not all(map(lambda x: isinstance(x, MutableMapping), dicts)):
+        raise TypeError("Dicts should be a list of type MutableMapping")
+    if len(dicts) < 2:
+        raise ValueError("There should be 2 or more dictionaries to union")
+
+    newDict: dict = {}
+    for d in dicts:
+        newDict.update(d)
+    return newDict
+
+
+# dictUnion({"a": 6}, {"a": 8}, {"b": 7})
+
+# Additional types
+type FinalStr = Final[str]

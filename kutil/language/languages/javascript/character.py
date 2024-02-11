@@ -85,6 +85,8 @@ del UNICODE_DIGIT, UNICODE_CONNECTOR_PUNCTUATION
 # Don't delete because it's used
 # del DECIMAL_CONV, OCTAL_CONV, HEX_CONV
 
+TABULATOR = '    '
+
 
 class Character:
     @staticmethod
