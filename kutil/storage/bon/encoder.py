@@ -35,6 +35,8 @@ class BonEncoder:
     +-------------------+---------------+
     | None              | null          |
     +-------------------+---------------+
+    | bytes             | bytes         |
+    +-------------------+---------------+
     """
 
     def encode(self, buff: ByteBuffer, data: BonData, encoding: EncodingType):
@@ -65,13 +67,13 @@ class BonEncoder:
         buff.write(uint32_to_bytes(len(encoded_pool)))
         for item in encoded_pool:
             if isinstance(item, dict):
-                buff.writeByte(FLAG_OBJECT)
+                buff.writeByte(ValueType.OBJECT)
                 buff.write(uint32_to_bytes(len(item)))  # Set object length
                 for key, value in item.items():
                     buff.write(str_to_bytes(key))  # Store object key
                     self._encode_encoded_pool_raw_value(value, buff)  # Store object value
             else:
-                buff.writeByte(FLAG_ARRAY)
+                buff.writeByte(ValueType.ARRAY)
                 buff.write(uint32_to_bytes(len(item)))  # Set list length
                 for value in item:
                     self._encode_encoded_pool_raw_value(value, buff)  # Store list item
@@ -81,7 +83,7 @@ class BonEncoder:
         if isinstance(value, bytes):
             buff.write(value)
         else:
-            buff.writeByte(FLAG_ADDRESS)
+            buff.writeByte(ValueType.ADDRESS)
             buff.write(uint32_to_bytes(value))
 
     def _encode_object(self, data: dict, pool: list, encoded_pool: list) -> dict:
@@ -105,7 +107,7 @@ class BonEncoder:
             elif encoded_pool[i] is True:
                 # If the object is currently being worked on, return
                 # a pointer to it to prevent recursion
-                return bytes([FLAG_ADDRESS]) + uint32_to_bytes(i)
+                return bytes([ValueType.ADDRESS]) + uint32_to_bytes(i)
             return i
         elif isinstance(value, list):
             i = pool.index(value)
@@ -115,35 +117,36 @@ class BonEncoder:
             elif encoded_pool[i] is True:
                 # If the array is currently being worked on, return
                 # a pointer to it to prevent recursion
-                return bytes([FLAG_ADDRESS]) + uint32_to_bytes(i)
+                return bytes([ValueType.ADDRESS]) + uint32_to_bytes(i)
             return i
         else:
             return self._encode_other_data(value)
 
     @staticmethod
     def _encode_other_data(data) -> bytes:
-        flags: int = 0
-
         if isinstance(data, str):
             encoded = str_to_bytes(data)
-            flags |= FLAG_STRING
+            valueType = ValueType.STRING
+        elif isinstance(data, bool):
+            encoded = b''
+            valueType = ValueType.BOOL_TRUE if data else ValueType.BOOL_FALSE
         elif isinstance(data, int):
             encoded = int_to_bytes(data)
-            flags |= FLAG_INT
+            valueType = ValueType.INT
         elif isinstance(data, float):
             encoded = float_to_bytes(data)
-            flags |= FLAG_FLOAT
-        elif isinstance(data, bool):
-            encoded = b'\x01' if data else b'\x00'
-            flags |= FLAG_BOOL
+            valueType = ValueType.FLOAT
+        elif isinstance(data, bytes):
+            encoded = uint32_to_bytes(len(data)) + data
+            valueType = ValueType.BYTES
         elif data is None:
             encoded = b''
-            flags |= FLAG_NONE
+            valueType = ValueType.NONE
         else:
             raise BonEncodeError(f"Cannot encode {type(data).__class__.__name__} which is not"
                                  f" BON serializable")
 
-        return bytes([flags]) + encoded
+        return bytes([valueType.value]) + encoded
 
     def _gen_pool(self, pool: list, data: BonData):
         if data in pool:
@@ -161,6 +164,7 @@ class BonEncoder:
                   isinstance(data, int) or
                   isinstance(data, float) or
                   isinstance(data, bool) or
+                  isinstance(data, bytes) or
                   data is None):
             raise BonEncodeError(f"Cannot encode {type(data).__class__.__name__} which is not"
                                  f" BON serializable")

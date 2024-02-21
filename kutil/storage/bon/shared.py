@@ -1,9 +1,10 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+from enum import unique, IntEnum
 from typing import Literal
 
-type BonData = dict | list
+type BonData = dict | list | str | int | float | bool | bytes
 type EncodingType = Literal[1, 2]
 
 RAW: EncodingType = 1
@@ -13,11 +14,16 @@ MAGIC: bytes = b'BON'
 INT_SIZE = 4
 FLOAT_SIZE = 4
 
-FLAG_ADDRESS: int = 0b00000001  # A pointer
-FLAG_NONE: int = 0b00000010  # None data type
-FLAG_OBJECT: int = 0b00000100  # Object data type
-FLAG_ARRAY: int = 0b00001000  # Array data type
-FLAG_INT: int = 0b00010000  # Int data type
-FLAG_FLOAT: int = 0b00100000  # Float data type
-FLAG_STRING: int = 0b01000000  # String data type
-FLAG_BOOL: int = 0b10000000  # Boolean data type
+
+@unique
+class ValueType(IntEnum):
+    ADDRESS = 0x00  # A pointer
+    NONE = 0x01  # None data type
+    OBJECT = 0x02  # Object data type
+    ARRAY = 0x03  # Array data type
+    INT = 0x04  # Int data type
+    FLOAT = 0x05  # Float data type
+    STRING = 0x06  # String data type
+    BOOL_TRUE = 0x07  # Boolean True data type
+    BOOL_FALSE = 0x08  # Boolean False data type
+    BYTES = 0x09  # Bytes data type

@@ -46,6 +46,8 @@ class BonDecoder:
     +---------------+-------------------+
     | null          | None              |
     +---------------+-------------------+
+    | bytes         | bytes             |
+    +---------------+-------------------+
     """
 
     def decode(self, buff: ByteBuffer, encoding: EncodingType) -> BonData:
@@ -103,26 +105,35 @@ class BonDecoder:
                 self._process_array_for_pointers(entry, pool)
 
     def _decode_raw_value(self, buff: ByteBuffer, pool: list):
-        flags = buff.readByte()
+        typeByte: int = buff.readByte()
+        try:
+            valueType: ValueType = ValueType(typeByte)
+        except Exception as e:
+            raise BonDecodeError(f"Cannot decode value with unknown type {hex(typeByte)}") from None
 
-        if flags & FLAG_ADDRESS != 0:
+        if valueType == ValueType.ADDRESS:
             return BonDecoderAddressPointer(uint32_from_bytes(buff))
-        elif flags & FLAG_OBJECT != 0:
+        elif valueType == ValueType.OBJECT:
             return self._decode_object(buff, pool)  # Added to the pool manually
-        elif flags & FLAG_ARRAY != 0:
+        elif valueType == ValueType.ARRAY:
             return self._decode_array(buff, pool)  # Added to the pool manually
-        elif flags & FLAG_STRING != 0:
+        elif valueType == ValueType.STRING:
             return str_from_bytes(buff)
-        elif flags & FLAG_INT != 0:
+        elif valueType == ValueType.INT:
             return int_from_bytes(buff)
-        elif flags & FLAG_FLOAT != 0:
+        elif valueType == ValueType.FLOAT:
             return float_from_bytes(buff)
-        elif flags & FLAG_BOOL != 0:
-            return buff.readByte() > 0
-        elif flags & FLAG_NONE != 0:
+        elif valueType == ValueType.BOOL_TRUE:
+            return True
+        elif valueType == ValueType.BOOL_FALSE:
+            return False
+        elif valueType == ValueType.BYTES:
+            size = uint32_from_bytes(buff)
+            return buff.read(size)
+        elif valueType == ValueType.NONE:
             return None
         else:
-            raise BonDecodeError(f"Cannot decode value with unknown flags {hex(flags)}")
+            raise TypeError(f"Unknown value kind {valueType.name}")
 
     def _decode_object(self, buff: ByteBuffer, pool: list) -> dict:
         obj: dict = {}

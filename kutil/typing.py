@@ -389,5 +389,6 @@ def dictUnion(*dicts: MutableMapping):
 
 # dictUnion({"a": 6}, {"a": 8}, {"b": 7})
 
+
 # Additional types
 type FinalStr = Final[str]

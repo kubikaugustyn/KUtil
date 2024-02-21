@@ -56,3 +56,5 @@ def dump_binary(data: BonData, encoding: EncodingType = GZIP,
         cls().encode(buff, data, encoding)
 
     return buff.export()
+
+# TODO Add object keys to the pool, saving some space with duplicate object keys

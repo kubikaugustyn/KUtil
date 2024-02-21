@@ -231,22 +231,43 @@ class AwaitExpression(Node):
 
 
 class BinaryExpression(Node):
+    # TODO Surrounding with () is optional - get all required types
+    surroundedNodes: set[JSNode] = {JSNode.UpdateExpression}
+
     operator: str
     left: int
     right: int
 
     def __init__(self, operator, left, right):
-        kind = JSNode.LogicalExpression if operator in ('||', '&&') else JSNode.BinaryExpression
+        if operator in {'||', '&&', '??'}:
+            # https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-binary-logical-operators
+            kind = JSNode.LogicalExpression
+        else:
+            # https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-binary-bitwise-operators
+            # https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-relational-operators
+            # Maybe more?
+            kind = JSNode.BinaryExpression
         super().__init__(kind, (left, right))
         self.operator = operator
         self.left = left
         self.right = right
 
     def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
-        left: str = getAstNode(ast, self.left).toString(ast, offset, False)
-        right: str = getAstNode(ast, self.right).toString(ast, offset, False)
-        # TODO Surrounding with () is optional
-        return f"{offset if startOffset else ''}({left}) {self.operator} ({right})"
+        left: Node = getAstNode(ast, self.left)
+        right: Node = getAstNode(ast, self.right)
+
+        leftStr: str = left.toString(ast, offset, False)
+        rightStr: str = right.toString(ast, offset, False)
+
+        surroundLeft: bool = left.type in BinaryExpression.surroundedNodes
+        surroundRight: bool = left.type in BinaryExpression.surroundedNodes
+
+        if surroundLeft:
+            leftStr = f"({leftStr})"
+        if surroundRight:
+            rightStr = f"({rightStr})"
+
+        return f"{offset if startOffset else ''}{leftStr} {self.operator} {rightStr}"
 
 
 class BlockStatement(Node):
