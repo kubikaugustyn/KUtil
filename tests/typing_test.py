@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 from unittest import TestCase
 
-from kutil.typing import singleton, anyattribute
+from kutil.typing_help import singleton, anyattribute
 
 
 @singleton

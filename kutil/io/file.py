@@ -4,7 +4,7 @@ __author__ = "kubik.augustyn@post.cz"
 import json
 
 from kutil.buffer.ByteBuffer import ByteBuffer
-from kutil.typing import FinalStr, Final, Literal, overload
+from kutil.typing_help import FinalStr, Final, Literal, overload
 
 type OUTPUT_STR = Literal["text", "bytes", "bytearray", "json", "buffer"]
 type OUTPUT = str | bytes | bytearray | dict | ByteBuffer

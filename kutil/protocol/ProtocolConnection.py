@@ -93,8 +93,8 @@ class ProtocolConnection:
                 self.onData(data)
             return True
         except NeedMoreDataError:
-            print("Need more data!")
-            print(buff.data)
+            # print("Need more data!")
+            # print(buff.data)
             return False
 
     def sendData(self, data: Any) -> bool:

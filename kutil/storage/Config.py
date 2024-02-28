@@ -5,7 +5,7 @@ import inspect
 import os.path
 from typing import TypeVar, Optional
 
-from kutil.typing import singleton, anyattribute
+from kutil.typing_help import singleton, anyattribute
 from kutil.io.directory import getDirParent
 from kutil.io.file import readFile, writeFile
 

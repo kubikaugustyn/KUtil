@@ -8,4 +8,4 @@ from kutil.threads import *
 from kutil.io import *
 from kutil.webscraper import *
 from kutil.storage import *
-from kutil.typing import *
+from kutil.typing_help import *

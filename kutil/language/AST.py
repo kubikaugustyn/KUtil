@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 from enum import Enum
 from typing import Any, Iterator
-from kutil.typing import FrozenList
+from kutil.typing_help import FrozenList
 
 
 class ASTNode:

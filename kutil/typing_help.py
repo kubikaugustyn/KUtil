@@ -181,8 +181,8 @@ def anyattribute(attributeStorageOrCls: str | type):
                         del getattr(self, attributeStorage)[name]
 
             def __repr__(self) -> str:
-                # return f"<kutil.typing.anyattribute._AnyAttributeHelper of {repr(cls)} at {hex(id(self))}>"
-                # return f"<kutil.typing.anyattribute._AnyAttributeHelper of {cls.__repr__(self)} at {hex(id(self))}>"
+                # return f"<kutil.typing_help.anyattribute._AnyAttributeHelper of {repr(cls)} at {hex(id(self))}>"
+                # return f"<kutil.typing_help.anyattribute._AnyAttributeHelper of {cls.__repr__(self)} at {hex(id(self))}>"
                 return cls.__repr__(self)
 
         # print("Updated class:", vars(_AnyAttributeHelper))
@@ -315,7 +315,7 @@ def _overloader_factory() -> Callable:
                 lambda info: info[0].__name__ + str(inspect.signature(info[0])),
                 self.__overloads__
             )
-            return f"<kutil.typing.overload_args wrapper for {', '.join(funcs)} at {hex(id(self))}>"
+            return f"<kutil.typing_help.overload_args wrapper for {', '.join(funcs)} at {hex(id(self))}>"
 
     return ReprWrapper()
 
