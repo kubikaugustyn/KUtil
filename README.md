@@ -1,18 +1,15 @@
 # KUtil
 
 Kuba's Python Utilities (kutil is intentional - a Czech word).
-Made for Python
+Made for Python 3.12 and newer
 
 # Installation from PyPI
 
-Sadly, the name *kutil* is already used, see [#3](https://github.com/kubikaugustyn/KUtil/issues/3) for more info, but
-right now KUtil cannot be installed from PyPI.
+Sadly, the name `kutil` is already used, but I sneaked it to PyPI with a different name: `KUtil-jakubaugustyn`
 
-[//]: # (```cmd)
-
-[//]: # (pip3 install kutil)
-
-[//]: # (```)
+```cmd
+pip3 install KUtil-jakubaugustyn
+```
 
 # Installation
 

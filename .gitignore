@@ -1,0 +1,10 @@
+/.idea
+/.idea/
+/.idea/*
+/tmp/
+/tmp/*
+/dist/
+/dist/*
+/package/
+/package/*
+/.pypirc
