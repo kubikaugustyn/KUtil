@@ -28,7 +28,8 @@ class HTTPThing(Serializable):
         # Make sure the content-length is present and correct
         self.headers["Content-Length"] = str(len(self.body))
         for name, value in self.headers.items():
-            buff.write(self.enc(str(name))).write(self.HEADER_SEP).write(self.enc(value)).write(self.CRLF)
+            buff.write(self.enc(str(name))).write(self.HEADER_SEP).write(self.enc(value)).write(
+                self.CRLF)
         buff.write(self.CRLF)
         buff.write(self.body)
 
@@ -42,7 +43,8 @@ class HTTPThing(Serializable):
             name, value = line.split(self.HEADER_SEP)
             self.headers[self.dec(name)] = self.dec(value)
             line = buff.readLine(self.CRLF)
-        self.body = bytes(buff.readAll())
+        bodySize: int = abs(int(self.headers.get("Content-Length", 0)))
+        self.body = bytes(buff.read(bodySize))
 
     @staticmethod
     def enc(thing: str) -> bytes:
@@ -64,7 +66,8 @@ class HTTPRequest(HTTPThing):
         self.requestURI = requestURI or "/"
 
     def write(self, buff: ByteBuffer):
-        buff.write(self.method.value).write(self.SP).write(self.enc(self.requestURI)).write(self.SP).write(self.VERSION)
+        buff.write(self.method.value).write(self.SP).write(self.enc(self.requestURI)).write(
+            self.SP).write(self.VERSION)
         buff.write(self.CRLF)
         self.writeRest(buff)
 
