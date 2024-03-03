@@ -28,9 +28,8 @@ class WebScraperServer(ABC):
         # print(conn)
         if not isinstance(conn, HTTPServerConnection):
             raise ValueError
-        castedConn: HTTPServerConnection = conn
         # print(f"On connection...")
-        return lambda data: self.onData(castedConn, data)
+        return self.onData
 
     def onData(self, conn: HTTPServerConnection, req: HTTPRequest):
         try:

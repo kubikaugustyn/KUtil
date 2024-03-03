@@ -1,6 +1,8 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+import json
+
 from kutil.buffer.ByteBuffer import ByteBuffer
 from kutil.buffer.Serializable import Serializable
 from kutil.protocol.HTTP.HTTPMethod import HTTPMethod
@@ -40,11 +42,36 @@ class HTTPThing(Serializable):
         line: bytearray = buff.readLine(self.CRLF)
         self.headers = HTTPHeaders()
         while len(line) > 0:
-            name, value = line.split(self.HEADER_SEP)
+            name, value = line.split(self.HEADER_SEP, maxsplit=1)
             self.headers[self.dec(name)] = self.dec(value)
             line = buff.readLine(self.CRLF)
-        bodySize: int = abs(int(self.headers.get("Content-Length", 0)))
+        try:
+            bodySize: int = abs(int(self.headers.get("Content-Length", "0")))
+        except (ValueError, TypeError):
+            bodySize: int = 0
         self.body = bytes(buff.read(bodySize))
+
+    @property
+    def json(self) -> dict:
+        if self.body is None or len(self.body) == 0:
+            raise ValueError("Empty body")
+        try:
+            text = HTTPThing.dec(self.body)
+        except UnicodeDecodeError as e:
+            raise ValueError("Invalid body format") from e
+
+        return json.loads(text)
+
+    @property
+    def text(self) -> str:
+        if self.body is None or len(self.body) == 0:
+            return ""
+        try:
+            text = HTTPThing.dec(self.body)
+        except UnicodeDecodeError as e:
+            raise ValueError("Invalid body format") from e
+
+        return text
 
     @staticmethod
     def enc(thing: str) -> bytes:

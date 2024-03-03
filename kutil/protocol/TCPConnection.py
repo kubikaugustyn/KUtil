@@ -14,7 +14,7 @@ class TCPProtocol(AbstractProtocol):
     name = "TCPProtocol"
 
     def unpackData(self, buff: ByteBuffer) -> bytes:
-        return buff.readAll()
+        return buff.readRest()
 
     def unpackSubProtocol(self, buff: ByteBuffer) -> ByteBuffer:
         return buff  # Nothing lol

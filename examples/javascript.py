@@ -7,9 +7,6 @@ from kutil.language.Token import TokenOutput
 from kutil.language.languages.javascript import parseScript, tokenizeScript
 from kutil.language.languages.javascript.JSOptions import JSOptions
 
-
-
-
 if __name__ == '__main__':
     options: JSOptions = JSOptions()
     # tokens: TokenOutput = tokenizeScript(readFile("test.js", "text"), options)

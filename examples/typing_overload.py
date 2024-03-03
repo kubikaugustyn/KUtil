@@ -2,6 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 # Sorry for bad example
+# Currently doesn't work
 
 from kutil.typing import overload_args
 

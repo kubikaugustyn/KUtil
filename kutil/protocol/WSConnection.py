@@ -3,10 +3,11 @@ __author__ = "kubik.augustyn@post.cz"
 
 from base64 import b64encode
 from hashlib import sha1
+from typing import Any
 
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError
 from kutil.buffer.ByteBuffer import ByteBuffer
-from kutil.protocol.ProtocolConnection import ProtocolConnection
+from kutil.protocol.ProtocolConnection import ProtocolConnection, ConnectionClosed
 from kutil.protocol.WS import WSMessage, WSOpcode, WSData
 
 
@@ -54,7 +55,8 @@ class WSConnection(ProtocolConnection):
     def init(self):
         self.dataBuffer = ByteBuffer()
 
-    def onDataInner(self, data: WSMessage) -> bool | WSData:
+    def onDataInner(self, data: WSMessage, stoppedUnpacking: bool = False,
+                    layer: AbstractProtocol | None = None) -> bool | WSData:
         if data.opcode in (WSOpcode.BINARY_FRAME, WSOpcode.TEXT_FRAME):
             self.dataBuffer.write(data.payload.superSecretRawAccess)
             if data.isFin:
@@ -63,12 +65,13 @@ class WSConnection(ProtocolConnection):
                 return message
             return False
         if data.opcode == WSOpcode.CONNECTION_CLOSE:
-            self.close()
+            self.close(ConnectionClosed())
             return False
         print("Unknown frame:", data.opcode.name)
-        self.close()
+        self.close(ValueError("Unknown frame:" + data.opcode.name))
         return False
 
 
 if __name__ == '__main__':
-    assert WSProtocol.createAcceptHeader("x3JJHMbDL1EzLkh9GBhXDw==") == "HSmrc0sMlYUkAGmm5OPpG2HaGWk="
+    assert WSProtocol.createAcceptHeader(
+        "x3JJHMbDL1EzLkh9GBhXDw==") == "HSmrc0sMlYUkAGmm5OPpG2HaGWk="

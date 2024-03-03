@@ -387,6 +387,10 @@ def dictUnion(*dicts: MutableMapping):
     return newDict
 
 
+def neverCall(*args, **kwargs) -> Never:
+    raise Exception("This function should never be called")
+
+
 # dictUnion({"a": 6}, {"a": 8}, {"b": 7})
 
 

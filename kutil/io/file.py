@@ -68,6 +68,7 @@ def writeFile(path: str, data: OUTPUT, encoding: str = "utf-8") -> None:
 
 # Newline stuff
 type NL_TYPE = Literal["CR", "LF", "CRLF"]
+NL_TYPES: set[str] = {"CR", "LF", "CRLF"}
 CR: FinalStr = "\r"  # Carriage return
 LF: FinalStr = "\n"  # Line feed
 CRLF: FinalStr = "\r\n"  # CRLF
@@ -96,6 +97,9 @@ def changeNewline(nlType: NL_TYPE) -> None:
     else:
         raise ValueError
 
+
+# TODO Fix config and make this possible
+# changeNewline(Config().io.newline)
 
 __all__ = [
     "readFile", "writeFile",

@@ -78,11 +78,11 @@ class Config:
 
     CONFIG_FILE = "config.json"
     # https://stackoverflow.com/questions/2860153/how
-    backupConfigPath: str = getDirParent(os.path.dirname(__file__))  # C:\Users\...\KUtil\kutil
+    _backupConfigPath: str = getDirParent(os.path.dirname(__file__))  # C:\Users\...\KUtil\kutil
 
-    startDirPath: str
-    descendentConfigPaths: list[str]  # The last item is the most unlikely config to be used
-    configEntries: list[ConfigEntry]
+    _startDirPath: str
+    _descendentConfigPaths: list[str]  # The last item is the most unlikely config to be used
+    _configEntries: list[ConfigEntry]
 
     def __init__(self):
         # https://stackoverflow.com/questions/13699283/how-tf
@@ -91,15 +91,15 @@ class Config:
         filepath = frame_info.filename
         del frame_info  # drop the reference to the stack frame to avoid reference cycles
         # make the path absolute (optional)
-        self.startDirPath = os.path.dirname(os.path.abspath(filepath))
-        self.configEntries = []
+        self._startDirPath = os.path.dirname(os.path.abspath(filepath))
+        self._configEntries = []
 
         self._populateConfigPaths()
         # print(self.descendentConfigPaths)
 
     def _populateConfigPaths(self):
-        paths = [self.backupConfigPath]
-        path = self.startDirPath
+        paths = [self._backupConfigPath]
+        path = self._startDirPath
         try:
             while True:
                 if path not in paths:
@@ -111,25 +111,25 @@ class Config:
         # Filter out non-existent paths
         paths = list(filter(lambda path: os.path.exists(self._getConfigPath(path)), paths))
         assert len(paths) > 0, f"Failed to find {self.CONFIG_FILE}"
-        self.descendentConfigPaths = paths
+        self._descendentConfigPaths = paths
 
     def _getConfigPath(self, dirPath: str) -> str:
         return os.path.join(dirPath, self.CONFIG_FILE)
 
     def _loadConfig(self, depth: int) -> ConfigEntry:
-        assert depth < len(self.descendentConfigPaths), f"No path for such deep {self.CONFIG_FILE} file"
-        if depth < len(self.configEntries):
-            return self.configEntries[depth]
-        for i, path in enumerate(self.descendentConfigPaths):
-            if i < len(self.configEntries):
+        assert depth < len(self._descendentConfigPaths), f"No path for such deep {self.CONFIG_FILE} file"
+        if depth < len(self._configEntries):
+            return self._configEntries[depth]
+        for i, path in enumerate(self._descendentConfigPaths):
+            if i < len(self._configEntries):
                 continue  # We have already loaded that one
             elif i > depth:
                 break
             raw = readFile(self._getConfigPath(path), "json")
             entry = ConfigEntry(raw, path)
-            assert i == len(self.configEntries)  # All good, just checking
-            self.configEntries.append(entry)
-        return self.configEntries[depth]
+            assert i == len(self._configEntries)  # All good, just checking
+            self._configEntries.append(entry)
+        return self._configEntries[depth]
 
     def _getSuitableEntryToRead(self, key: str) -> ConfigEntry:
         try:

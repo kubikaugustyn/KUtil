@@ -1,7 +1,10 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from typing import Callable, Any
+from typing import Callable, Any, Self
+
+from kutil.typing_help import neverCall
+
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError
 from kutil.buffer.ByteBuffer import ByteBuffer
 from kutil.protocol.ProtocolConnection import ProtocolConnection
@@ -42,9 +45,13 @@ class HTTPServerProtocol(AbstractProtocol):
         # pass  # Nothing lol
 
 
+class WebSocketNotAllowed(Exception):
+    pass
+
+
 class HTTPServerConnection(ProtocolConnection):
     # Note that editing the __init__ method might break the whole thing
-    onData: Callable[[HTTPRequest | WSMessage], None]
+    onData: Callable[[Self, HTTPRequest | WSMessage], None]
     didUpgradeToWS: bool
     acceptWSChecker: AcceptWSChecker
     onWebsocketEstablishment: Callable[[Any], None] | None
@@ -56,17 +63,30 @@ class HTTPServerConnection(ProtocolConnection):
         self.onWebsocketEstablishment = None  # Change if wanted, called with self as the argument
         self.wsConn = None
 
-    def onDataInner(self, data: HTTPRequest | WSMessage) -> bool:
-        assert isinstance(data, HTTPRequest) if not self.didUpgradeToWS else isinstance(data, WSMessage)
+    def _denyWebsocketConnection(self, notAllowedOrInvalid: bool):
+        if notAllowedOrInvalid:
+            resp: HTTPResponse = HTTPResponse(400, "Invalid protocol selected", HTTPHeaders(), b'')
+        else:
+            resp: HTTPResponse = HTTPResponse(400, "Bad request", HTTPHeaders(),
+                                              b'Invalid key header or version != 13 selected')
+        self.sendData(resp)
+        self.close(WebSocketNotAllowed())
+
+    def onDataInner(self, data: HTTPRequest | WSMessage, stoppedUnpacking: bool = False,
+                    layer: AbstractProtocol | None = None) -> bool:
+        assert isinstance(data, HTTPRequest) if not self.didUpgradeToWS else isinstance(data,
+                                                                                        WSMessage)
         if not self.didUpgradeToWS:
-            if data.headers.get("Upgrade") == "websocket" and data.headers.get("Connection") == "Upgrade":
+            if data.headers.get("Upgrade") == "websocket" and data.headers.get(
+                    "Connection") == "Upgrade":
                 if not self.acceptWSChecker(self, data):
                     # Cancel the connection if we aren't allowed to establish a WS connection
-                    self.close()
+                    self._denyWebsocketConnection(True)
                     return False
-                if data.headers.get("Sec-WebSocket-Version") != "13" or data.headers.get("Sec-WebSocket-Key") is None:
+                if data.headers.get("Sec-WebSocket-Version") != "13" or data.headers.get(
+                        "Sec-WebSocket-Key") is None:
                     # Make sure we both support v13 and we have a key
-                    self.close()
+                    self._denyWebsocketConnection(False)
                     return False
                 # print(data.headers.get("Sec-WebSocket-Key"))
                 # print(WSProtocol.createAcceptHeader(data.headers.get("Sec-WebSocket-Key")))
@@ -74,7 +94,8 @@ class HTTPServerConnection(ProtocolConnection):
                 headers["Upgrade"] = "websocket"
                 headers["Connection"] = "Upgrade"
                 # headers["Sec-WebSocket-Protocol"] = "chat" - breaks stuff, although on Wikipedia
-                headers["Sec-WebSocket-Accept"] = WSProtocol.createAcceptHeader(data.headers.get("Sec-WebSocket-Key"))
+                headers["Sec-WebSocket-Accept"] = WSProtocol.createAcceptHeader(
+                    data.headers.get("Sec-WebSocket-Key"))
                 resp: HTTPResponse = HTTPResponse(101, "Switching Protocols", headers, b'')
                 self.sendData(resp)
                 self.removeProtocol(self.layers[-1])  # Remove the HTTP protocol
@@ -82,7 +103,7 @@ class HTTPServerConnection(ProtocolConnection):
                 self.didUpgradeToWS = True
                 if self.onWebsocketEstablishment:
                     self.onWebsocketEstablishment(self)
-                self.wsConn = WSConnection(("", 0), [], None, self.sock)
+                self.wsConn = WSConnection(("", 0), [], neverCall, self.sock)
                 return False  # Don't call the onData with the WS request
         return True
 
@@ -100,8 +121,10 @@ class HTTPServer(ProtocolServer):
     connectionType: type[ProtocolConnection] = HTTPServerConnection
     acceptWSChecker: AcceptWSChecker
 
-    def __init__(self, address: tuple[str, int], onConnection: Callable[[ProtocolConnection], Callable[[Any], None]]):
-        super().__init__(address, lambda conn: [TCPProtocol(conn), HTTPServerProtocol(conn)], onConnection)
+    def __init__(self, address: tuple[str, int],
+                 onConnection: Callable[[ProtocolConnection], Callable[[Self, HTTPRequest], None]]):
+        super().__init__(address, lambda conn: [TCPProtocol(conn), HTTPServerProtocol(conn)],
+                         onConnection)
         self.acceptWSChecker = lambda x, y: False
 
     def acceptWebsocket(self, acceptWSChecker: AcceptWSChecker):

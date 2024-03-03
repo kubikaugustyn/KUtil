@@ -10,7 +10,7 @@ from kutil.protocol.TCPConnection import TCPProtocol
 from kutil.protocol.HTTP.HTTPRequest import HTTPRequest
 from kutil.protocol.HTTP.HTTPResponse import HTTPResponse
 
-type OnHTTPDataListener = Callable[[HTTPResponse], None]
+type OnHTTPDataListener = Callable[[ProtocolConnection, HTTPResponse], None]
 
 
 class HTTPProtocol(AbstractProtocol):
@@ -18,10 +18,7 @@ class HTTPProtocol(AbstractProtocol):
 
     def unpackData(self, buff: ByteBuffer) -> HTTPResponse:
         resp = HTTPResponse()
-        try:
-            resp.read(buff)
-        except Exception:
-            raise NeedMoreDataError
+        resp.read(buff)  # Don't catch errors!
         return resp
 
     def unpackSubProtocol(self, buff: ByteBuffer) -> ByteBuffer:

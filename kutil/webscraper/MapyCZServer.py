@@ -276,6 +276,12 @@ class MapyCZServer(WebScraperServer):
                 if deltaX == 0 and deltaY == 0:
                     continue  # This is the tile we already scraped
                 try:
+                    cached = self.__obtainFromCache(x + deltaX, y + deltaY, zoom, tileSize, mapSet,
+                                                    lang)
+                    if cached is not None:
+                        # Already have that one
+                        continue
+
                     # canScrapeAround=False - if not, it will repeat infinitely
                     self.__scrape(x + deltaX, y + deltaY, zoom, tileSize, mapSet, lang,
                                   canScrapeAround=False)

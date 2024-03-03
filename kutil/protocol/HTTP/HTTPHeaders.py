@@ -18,6 +18,9 @@ class CaseInsensitiveKey(object):
     def __str__(self):
         return self.key
 
+    def __repr__(self):
+        return f"<CaseInsensitiveKey '{self.key}'>"
+
 
 class HTTPHeaders(dict[str, str]):
     def __init__(self):
@@ -34,7 +37,7 @@ class HTTPHeaders(dict[str, str]):
     def get(self, key: str, default=None):
         key = CaseInsensitiveKey(key)
         if key not in self:
-            return
+            return default
         return super().__getitem__(key)
 
 

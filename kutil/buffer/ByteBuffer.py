@@ -15,14 +15,18 @@ class ByteBuffer(Iterable[int]):
         self.pointer = 0
 
     def readByte(self) -> int:
-        self.has(1)
+        self.assertHas(1)
         self.pointer += 1
         return self.data[self.pointer - 1]
+
+    def readLastByte(self) -> int:
+        assert len(self.data) > 0
+        return self.data[-1]
 
     def read(self, amount: int) -> bytearray:
         if amount == 0:
             return bytearray()
-        self.has(amount)
+        self.assertHas(amount)
         self.pointer += amount
         return self.data[self.pointer - amount:self.pointer]
 
@@ -33,7 +37,7 @@ class ByteBuffer(Iterable[int]):
         return data
 
     def index(self, seq: bytes) -> int:
-        self.has(len(seq))
+        self.assertHas(len(seq))
         for i in range(len(self) - len(seq) + 1):
             if self.data[self.pointer + i:self.pointer + i + len(seq)] == seq:
                 return i
@@ -41,21 +45,21 @@ class ByteBuffer(Iterable[int]):
 
     def skip(self, amount: int):
         assert amount > 0
-        self.has(amount)
+        self.assertHas(amount)
         self.pointer += amount
 
     def back(self, amount: int):
         assert amount > 0
-        self.has(-amount)
+        self.assertHas(-amount)
         self.pointer -= amount
 
     def __len__(self) -> int:
         return len(self.data) - self.pointer
 
-    def readAll(self) -> bytearray:
+    def readRest(self) -> bytearray:
         if len(self) == 0:
             return bytearray(0)
-        self.has(1)
+        self.assertHas(1)
         amount = len(self)
         self.pointer += amount
         return self.data[self.pointer - amount:self.pointer]
@@ -85,11 +89,16 @@ class ByteBuffer(Iterable[int]):
             self.data.extend(data)
         return self
 
+    def resetBeforePointer(self) -> Self:
+        self.data = self.data[self.pointer:]
+        self.resetPointer()
+        return self
+
     def resetPointer(self) -> Self:
         self.pointer = 0
         return self
 
-    def has(self, amount: int) -> bool:
+    def assertHas(self, amount: int) -> bool:
         if amount == 0:
             raise ValueError("Invalid amount")
         if amount < 0:
@@ -98,6 +107,17 @@ class ByteBuffer(Iterable[int]):
         else:
             if len(self.data) < self.pointer + amount:
                 raise IndexError("Not enough bytes")
+        return True
+
+    def has(self, amount: int) -> bool:
+        if amount == 0:
+            return True
+        if amount < 0:
+            if -amount > self.pointer:
+                return False
+        else:
+            if len(self.data) < self.pointer + amount:
+                return False
         return True
 
     def copy(self) -> Self:

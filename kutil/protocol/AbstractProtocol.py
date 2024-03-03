@@ -10,6 +10,9 @@ from kutil.buffer import ByteBuffer
 class NeedMoreDataError(BaseException): ...
 
 
+class StopUnpacking(BaseException): ...
+
+
 class AbstractProtocol(ABC):
     name: str = "AbstractProtocol"
     connection: object

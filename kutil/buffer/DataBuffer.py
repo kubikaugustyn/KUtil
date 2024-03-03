@@ -31,6 +31,10 @@ class DataBuffer:
         self.buff.write(num.to_bytes(8, "big", signed=False))
         return self
 
+    def writeUIntN(self, num: int, byteSize: int) -> Self:
+        self.buff.write(num.to_bytes(byteSize, "big", signed=False))
+        return self
+
     def writeInt8(self, num: int) -> Self:
         # I don't want to mess with the negative stuff
         self.buff.write(num.to_bytes(1, "big", signed=True))
@@ -46,6 +50,10 @@ class DataBuffer:
 
     def writeInt64(self, num: int) -> Self:
         self.buff.write(num.to_bytes(8, "big", signed=True))
+        return self
+
+    def writeIntN(self, num: int, byteSize: int) -> Self:
+        self.buff.write(num.to_bytes(byteSize, "big", signed=True))
         return self
 
     def writeUInt(self, num: int, byteSize: int) -> Self:
@@ -101,6 +109,9 @@ class DataBuffer:
     def readUInt64(self) -> int:
         return int.from_bytes(self.buff.read(8), "big", signed=False)
 
+    def readUIntN(self, byteSize: int) -> int:
+        return int.from_bytes(self.buff.read(byteSize), "big", signed=False)
+
     def readInt8(self) -> int:
         # I don't want to mess with the negative stuff
         return int.from_bytes(self.buff.read(1), "big", signed=True)
@@ -113,6 +124,9 @@ class DataBuffer:
 
     def readInt64(self) -> int:
         return int.from_bytes(self.buff.read(8), "big", signed=True)
+
+    def readIntN(self, byteSize: int) -> int:
+        return int.from_bytes(self.buff.read(byteSize), "big", signed=True)
 
     def readUInt(self, byteSize: int) -> int:
         if byteSize == 1:

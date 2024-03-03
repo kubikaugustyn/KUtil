@@ -13,5 +13,6 @@ if __name__ == "__main__":
     from tests.typing_test import TestTyping  # Test typing
     from tests.test_bon import TestBON  # Test BON
     from tests.test_js import TestJavascript  # Test JS
+    from tests.test_bytebuffer import TestByteBuffer  # Test ByteBuffer
 
     main()

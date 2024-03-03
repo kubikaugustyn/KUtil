@@ -3,10 +3,13 @@ __author__ = "kubik.augustyn@post.cz"
 
 from socket import socket, AF_INET, SOCK_STREAM
 from typing import Callable, Any
+
+from kutil.typing_help import neverCall
+
 from kutil.protocol.AbstractProtocol import AbstractProtocol
 from kutil.protocol.ProtocolConnection import ProtocolConnection
 
-type OnConnectionListener = Callable[[ProtocolConnection], Callable[[Any], None]]
+type OnConnectionListener = Callable[[ProtocolConnection], Callable[[ProtocolConnection,Any], None]]
 type LayersGetter = Callable[[ProtocolConnection], list[AbstractProtocol]]
 
 
@@ -35,7 +38,7 @@ class ProtocolServer:
             conn, addr = self.sock.accept()
             i += 1
             # I hope that the lambda will know the changed onData value
-            connection: ProtocolConnection = self.connectionType(addr, [], None, conn)
+            connection: ProtocolConnection = self.connectionType(addr, [], neverCall, conn)
             for protocol in self.layersGetter(connection):
                 connection.addProtocol(protocol)
             if not self.onConnectionInner(connection):
