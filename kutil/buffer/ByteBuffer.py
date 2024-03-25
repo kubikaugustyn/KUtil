@@ -5,6 +5,14 @@ import copy
 from typing import Iterable, Self
 
 
+class OutOfBoundsReadError(BaseException):
+    pass
+
+
+class OutOfBoundsUndoError(BaseException):
+    pass
+
+
 class ByteBuffer(Iterable[int]):
     data: bytearray
     pointer: int
@@ -101,12 +109,15 @@ class ByteBuffer(Iterable[int]):
     def assertHas(self, amount: int) -> bool:
         if amount == 0:
             raise ValueError("Invalid amount")
+        bytesLeft: int = len(self.data) - self.pointer
         if amount < 0:
             if -amount > self.pointer:
-                raise ValueError("Not enough bytes")
+                raise OutOfBoundsUndoError(
+                    f"Not enough bytes (going back by {-amount}, but {self.pointer} had been read)")
         else:
             if len(self.data) < self.pointer + amount:
-                raise IndexError("Not enough bytes")
+                raise OutOfBoundsReadError(
+                    f"Not enough bytes (reading {amount}, but {bytesLeft} are available)")
         return True
 
     def has(self, amount: int) -> bool:

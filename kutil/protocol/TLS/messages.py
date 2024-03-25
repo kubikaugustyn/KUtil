@@ -5,7 +5,7 @@ import os
 import sys
 from enum import IntEnum, unique
 
-from kutil.protocol.TLS.extensions import Extension
+from kutil.protocol.TLS.extensions import Extension, readExtension
 
 from kutil.protocol.TLS.CipherSuite import CipherSuite
 
@@ -51,7 +51,7 @@ class Message(Serializable):
 
     def read(self, buff: ByteBuffer):
         dBuff = DataBuffer(buff)
-        self.messageType = MessageType(self.readType(dBuff))
+        self.messageType = MessageType(self.readType(dBuff, rollback=False))
         length = dBuff.readUIntN(3)
         self.payload = buff.read(length)
 
@@ -61,6 +61,11 @@ class Message(Serializable):
         length = len(self.payload)
         dBuff.writeUIntN(length, 3)
         buff.write(self.payload)
+
+    def __repr__(self):
+        if self.__class__ is not Message:
+            return super().__repr__()
+        return f"<kutil.protocol.TLS.messages.Message of type {self.messageType.name} object at {hex(id(self))}>"
 
 
 # https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.2
@@ -112,3 +117,80 @@ class ClientHelloMessage(Message):
 
         self.payload = b.export()
         super().write(buff)
+
+
+# https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.3
+class ServerHelloMessage(Message):
+    protocolVersion: TLSVersion
+    random: bytes
+    sessionIDEcho: bytes
+    cipherSuite: CipherSuite
+    compressionMethod: int
+    extensions: list[Extension]
+
+    def __init__(self, protocolVersion: TLSVersion | None = None, random: bytes | None = None,
+                 sessionIDEcho: bytes | None = None, cipherSuite: CipherSuite | None = None,
+                 compressionMethod: int | None = None, extensions: list[Extension] | None = None):
+        self.protocolVersion = protocolVersion
+        self.random = random if random is not None else os.urandom(32)
+        self.sessionIDEcho = sessionIDEcho if sessionIDEcho is not None else b''
+        self.cipherSuite = cipherSuite if cipherSuite is not None else None
+        self.compressionMethod = compressionMethod if compressionMethod is not None else None
+        self.extensions = extensions if extensions is not None else []
+
+        super().__init__(MessageType.ServerHello, b'')
+
+    def read(self, buff: ByteBuffer):
+        super().read(buff)
+        b = ByteBuffer(self.payload)
+        dBuff = DataBuffer(b)
+
+        self.protocolVersion = TLSVersion((b.readByte(), b.readByte()))
+        self.random = b.read(32)
+        sessionIDEchoLength = dBuff.readUInt8()
+        assert 0 <= sessionIDEchoLength <= 32
+        self.sessionIDEcho = b.read(sessionIDEchoLength)
+        self.cipherSuite = CipherSuite(dBuff.readUInt16())
+        self.compressionMethod = b.readByte()
+        assert self.compressionMethod == 0
+
+        self.extensions = []
+        if not b.has(1):
+            # Apparently when there is no length field for the extensions it means 0?
+            # TOD0 Figure it out!
+            return
+
+        extensionLength = dBuff.readUInt16()
+        assert 6 <= extensionLength <= pow(2, 16) - 1
+        extensionBuff = ByteBuffer(b.read(extensionLength))
+        while extensionBuff.has(1):
+            extension = readExtension(extensionBuff)
+            self.extensions.append(extension)
+
+
+# https://datatracker.ietf.org/doc/html/rfc8446#section-4.4.2
+class CertificateMessage(Message):
+    def __init__(self):
+        super().__init__(MessageType.Certificate, b'')
+
+    def read(self, buff: ByteBuffer):
+        super().read(buff)
+        b = ByteBuffer(self.payload)
+        dBuff = DataBuffer(b)
+
+        pass  # TODO Parse the certificate
+
+
+def parseMessage(buff: DataBuffer, version: TLSVersion) -> Message:
+    msgType: MessageType = Message.readType(buff, rollback=True)
+
+    if msgType == MessageType.ClientHello:
+        msg = ClientHelloMessage(version)
+    elif msgType == MessageType.ServerHello:
+        msg = ServerHelloMessage(version)
+    elif msgType == MessageType.Certificate:
+        msg = CertificateMessage()
+    else:
+        msg: Message = Message()
+    msg.read(buff.buff)
+    return msg

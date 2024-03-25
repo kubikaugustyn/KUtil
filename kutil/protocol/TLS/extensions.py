@@ -41,7 +41,7 @@ class Extension(Serializable):
     extensionType: ExtensionType
     payload: bytes
 
-    def __init__(self, extensionType: ExtensionType, payload: bytes | None = None):
+    def __init__(self, extensionType: ExtensionType | None, payload: bytes | None = None):
         self.extensionType = extensionType
         self.payload = payload if payload is not None else b''
 
@@ -51,9 +51,16 @@ class Extension(Serializable):
         dBuff.writeUInt16(len(self.payload))
         buff.write(self.payload)
 
+    @staticmethod
+    def readType(dBuff: DataBuffer, rollback: bool) -> ExtensionType:
+        extensionType = ExtensionType(dBuff.readUInt16())
+        if rollback:
+            dBuff.buff.back(2)
+        return extensionType
+
     def read(self, buff: ByteBuffer):
         dBuff = DataBuffer(buff)
-        self.extensionType = ExtensionType(dBuff.readUInt16())
+        self.extensionType = self.readType(dBuff, False)
         length = dBuff.readUInt16()
         self.payload = buff.read(length)
 
@@ -79,6 +86,9 @@ class NamedGroup(IntEnum):
 DHE_GROUPS: Final[set[NamedGroup]] = {NamedGroup.ffdhe2048, NamedGroup.ffdhe3072,
                                       NamedGroup.ffdhe4096, NamedGroup.ffdhe6144,
                                       NamedGroup.ffdhe8192}
+
+ECDHE_GROUPS: Final[set[NamedGroup]] = {NamedGroup.secp256r1, NamedGroup.secp384r1,
+                                        NamedGroup.secp521r1}
 
 
 class SupportedGroupsExtension(Extension):
@@ -142,3 +152,21 @@ class KeyShareExtension(Extension):
 
         self.payload = payloadBuff.export()
         super().write(buff)
+
+
+def readExtension(buff: ByteBuffer) -> Extension:
+    """
+    Given a buffer, returns an extension that is parsed from it, optimally special extension object.
+    :param buff: source buffer
+    :return: parsed extension
+    """
+    extensionType = Extension.readType(DataBuffer(buff), True)
+
+    if extensionType is ExtensionType.KEY_SHARE:
+        extension = KeyShareExtension()
+    elif extensionType is ExtensionType.SUPPORTED_GROUPS:
+        extension = SupportedGroupsExtension()
+    else:
+        extension = Extension(extensionType)
+    extension.read(buff)
+    return extension

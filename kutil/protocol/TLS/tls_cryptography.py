@@ -5,10 +5,9 @@ import math
 import re
 from typing import Final
 
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import dh
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from kutil.protocol.TLS.extensions import NamedGroup
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import dh, ec, x25519, x448
+from kutil.protocol.TLS.extensions import NamedGroup, KeyShareEntry, DHE_GROUPS, ECDHE_GROUPS
 
 _clear_pattern: Final[re.Pattern] = re.compile(r"([^A-F0-9])+")
 
@@ -18,6 +17,9 @@ def _unhex(s: str) -> int:
     return int(s, base=16)
 
 
+###################################
+#               DHE               #
+###################################
 DHE_Ps: Final[dict[int, int]] = {
     2048: _unhex("""
         FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
@@ -172,26 +174,86 @@ def getDHEKeySize(group: NamedGroup) -> int:
     return key_size
 
 
+def getDHEParameterNumbers(group: NamedGroup) -> dh.DHParameterNumbers:
+    key_size = getDHEKeySize(group)
+    return dh.DHParameterNumbers(DHE_Ps[key_size], 2)
+
+
 # https://cryptography.io/en/latest/hazmat/primitives/asymmetric/dh/
 # https://datatracker.ietf.org/doc/html/rfc7919#autoid-30
-def generateDHEKeys(group: NamedGroup) -> tuple[bytes, dh.DHPrivateKey]:
-    key_size = getDHEKeySize(group)
-
-    # TODO Find out why this never finishes with key_size >= 4096
-    parameters: dh.DHParameters = dh.generate_parameters(generator=2, key_size=key_size)
+def generateDHEKeypair(group: NamedGroup) -> tuple[dh.DHPrivateKey, dh.DHPublicKey]:
+    parameters: dh.DHParameters = getDHEParameterNumbers(group).parameters()
     private_key: dh.DHPrivateKey = parameters.generate_private_key()
     public_key: dh.DHPublicKey = private_key.public_key()
-    # TODO Find the correct encoding and format
-    public_bytes: bytes = public_key.public_bytes(serialization.Encoding.Raw,
-                                                  serialization.PublicFormat.SubjectPublicKeyInfo)
-    return public_bytes, private_key
+    return private_key, public_key
 
 
 def generateDHESharedKey(group: NamedGroup, private_key: dh.DHPrivateKey,
                          peer_public_value: int) -> bytes:
-    pn = dh.DHParameterNumbers(DHE_Ps[getDHEKeySize(group)], 2)
-    peer_public_numbers = dh.DHPublicNumbers(peer_public_value, pn)
+    peer_public_numbers = dh.DHPublicNumbers(peer_public_value, getDHEParameterNumbers(group))
     peer_public_key = peer_public_numbers.public_key()
 
     shared_key: bytes = private_key.exchange(peer_public_key)
     return shared_key
+
+
+###################################
+#              ECDHE              #
+###################################
+
+def getECDHECurve(group: NamedGroup) -> ec.EllipticCurve:
+    if group == NamedGroup.secp256r1:
+        return ec.SECP256R1()
+    elif group == NamedGroup.secp384r1:
+        return ec.SECP384R1()
+    elif group == NamedGroup.secp521r1:
+        return ec.SECP521R1()
+    raise ValueError(f"Invalid key group: {repr(group)}")
+
+
+# https://cryptography.io/en/latest/hazmat/primitives/asymmetric/ec/
+def generateECDHEPrivateKey(group: NamedGroup) -> ec.EllipticCurvePrivateKey:
+    private_key = ec.generate_private_key(getECDHECurve(group))
+    return private_key
+
+
+###################################
+#              X25519             #
+###################################
+
+# https://cryptography.io/en/latest/hazmat/primitives/asymmetric/x25519/
+def generateX25519PrivateKey() -> x25519.X25519PrivateKey:
+    private_key = x25519.X25519PrivateKey.generate()
+    return private_key
+
+
+###################################
+#               X448              #
+###################################
+
+# https://cryptography.io/en/latest/hazmat/primitives/asymmetric/x448/
+def generateX448PrivateKey() -> x448.X448PrivateKey:
+    private_key = x448.X448PrivateKey.generate()
+    return private_key
+
+
+###################################
+#            Combined             #
+###################################
+type AnyPrivateKey = dh.DHPrivateKey | ec.EllipticCurvePrivateKey | x25519.X25519PrivateKey | x448.X448PrivateKey
+
+
+def generateKeypair(group: NamedGroup) -> tuple[AnyPrivateKey, dh.DHPublicKey | None]:
+    if group in DHE_GROUPS:
+        return generateDHEKeypair(group)
+    elif group in ECDHE_GROUPS:
+        return generateECDHEPrivateKey(group), None
+    elif group is NamedGroup.x25519:
+        return generateX25519PrivateKey(), None
+    elif group is NamedGroup.x448:
+        return generateX448PrivateKey(), None
+    else:
+        raise NotImplementedError(f"Unknown group {group}")
+
+
+__all__ = ["generateKeypair"]

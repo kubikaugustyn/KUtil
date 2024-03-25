@@ -35,12 +35,7 @@ class HandshakeRecord(RawTLSRecord):
         payloadBuff: DataBuffer = DataBuffer(ByteBuffer(self.payload))
 
         while payloadBuff.buff.has(4):
-            msgType: MessageType = Message.readType(payloadBuff, False)
-            if msgType == MessageType.ClientHello:
-                msg = messages.ClientHelloMessage(self.connectionState.version)
-            else:
-                msg: Message = Message()
-            msg.read(payloadBuff.buff)
+            msg = messages.parseMessage(payloadBuff, self.connectionState.version)
             self.messages.append(msg)
 
 

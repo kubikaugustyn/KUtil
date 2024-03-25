@@ -1,13 +1,14 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dh
 from enum import Enum, unique, IntEnum
 from typing import Self
 
-from kutil.protocol.TLS.tls_cryptography import generateDHEKeys
+from kutil.protocol.TLS.tls_cryptography import generateKeypair
 
-from kutil.protocol.TLS.extensions import NamedGroup, KeyShareEntry, DHE_GROUPS
+from kutil.protocol.TLS.extensions import NamedGroup, KeyShareEntry, DHE_GROUPS, ECDHE_GROUPS
 
 from kutil.protocol.TLS.CipherSuite import CipherSuite
 
@@ -62,18 +63,21 @@ class ConnectionState:
     state: ConnectionStateType
     mac: MACType | None
     _version: TLSVersion | None
-    supportedCipherSuites: list[CipherSuite] = [
-        CipherSuite.TLS_AES_128_GCM_SHA256,
-        CipherSuite.TLS_AES_256_GCM_SHA384,
-        CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
-        CipherSuite.TLS_AES_128_CCM_SHA256,
-        CipherSuite.TLS_AES_128_CCM_8_SHA256
-    ]
+    supportedCipherSuites: list[CipherSuite] = list(CipherSuite)  # Well, lets lie to the server...
     supportedGroups: list[NamedGroup] = [
         # TODO Order and implement them all properly
+        # Finite Field Groups(DHE)
         NamedGroup.ffdhe8192,
+        NamedGroup.ffdhe6144,
         NamedGroup.ffdhe4096,
-        NamedGroup.ffdhe2048
+        NamedGroup.ffdhe3072,
+        NamedGroup.ffdhe2048,
+        # Elliptic Curve Groups(ECDHE)
+        NamedGroup.secp256r1,
+        NamedGroup.secp384r1,
+        NamedGroup.secp521r1,
+        NamedGroup.x25519,
+        NamedGroup.x448
     ]
     clientSharedKeys: list[KeyShareEntry]
     _privateKeys: dict[NamedGroup, dh.DHPrivateKey]
@@ -86,20 +90,19 @@ class ConnectionState:
         self.clientSharedKeys = self.generateClientSharedKeys()
 
     def generateClientSharedKeys(self) -> list[KeyShareEntry]:
-        print("Gen keys")
         keys = []
         self._privateKeys = {}
 
         for group in self.supportedGroups:
-            if group in DHE_GROUPS:
-                print("S")
-                public_key, private_key = generateDHEKeys(group)
-                print("E")
-                self._privateKeys[group] = private_key
-                keys.append(KeyShareEntry(group, public_key))
-            else:
-                raise NotImplementedError(f"Unknown group {group}")
-        print("Gotcha")
+            private_key, public_key = generateKeypair(group)
+
+            self._privateKeys[group] = private_key
+
+            if public_key is not None:
+                # TODO Find the correct encoding and format
+                public_bytes = public_key.public_bytes(serialization.Encoding.DER,
+                                                       serialization.PublicFormat.SubjectPublicKeyInfo)
+                keys.append(KeyShareEntry(group, public_bytes))
         return keys
 
     @property

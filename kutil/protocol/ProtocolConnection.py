@@ -87,8 +87,12 @@ class ProtocolConnection:
                     return
                 buff.write(data)
                 buff.resetPointer()
-                if self.tryReceivedData(buff):
-                    buff.resetBeforePointer()
+                while buff.has(1):
+                    # Read all the packets that are packed tightly one after another
+                    if self.tryReceivedData(buff):
+                        buff.resetBeforePointer()
+                    else:
+                        break
         except OSError as e:
             self.close(e)
         except (ConnectionAbortedError, ConnectionError, ConnectionResetError) as e:

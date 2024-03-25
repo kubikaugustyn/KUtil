@@ -3,14 +3,16 @@ __author__ = "kubik.augustyn@post.cz"
 
 from typing import Any
 
+from kutil.protocol.TLS.certificate_checker import checkCertificate
+
 from kutil.protocol.TLS.AlertCause import AlertCause
 
 from kutil.protocol.TLS.RawTLSRecord import TLSRecordType, RawTLSRecord
 
 from kutil.protocol.TLS.ConnectionState import ConnectionState, ConnectionStateType, TLSVersion
 
-from kutil.buffer.ByteBuffer import ByteBuffer
-from kutil.protocol.AbstractProtocol import AbstractProtocol, StopUnpacking
+from kutil.buffer.ByteBuffer import ByteBuffer, OutOfBoundsReadError, OutOfBoundsUndoError
+from kutil.protocol.AbstractProtocol import AbstractProtocol, StopUnpacking, NeedMoreDataError
 from kutil.protocol.ProtocolConnection import ProtocolEstablishedConnection, OnEstablishedListener
 from kutil.protocol.TCPConnection import TCPProtocol
 from kutil.protocol.HTTPConnection import OnHTTPDataListener, HTTPProtocol
@@ -33,19 +35,24 @@ class TLSProtocol(AbstractProtocol):
         elif contentType == TLSRecordType.Alert:
             record = records.AlertRecord(state)
         elif contentType == TLSRecordType.Handshake:
-            record = records.AlertRecord(state)
+            record = records.HandshakeRecord(state)
         elif contentType == TLSRecordType.ChangeCipherSpec:
-            record = records.AlertRecord(state)
+            record = records.ChangeCipherSpecRecord(state)
         elif contentType == TLSRecordType.Heartbeat:
-            record = records.AlertRecord(state)
+            record = records.RawTLSRecord(TLSRecordType.Heartbeat,
+                                          state)  # records.HeartbeatRecord(state)
         else:
             raise NotImplementedError(f"Unknown record type {contentType.name}")
+
         # On AlertCause error send that error and terminate the connection with it
         try:
             record.read(buff)
         except AlertCause as e:
             self.connection.sendAlert(e, False)
             self.connection.close(e)
+        except (OutOfBoundsUndoError, OutOfBoundsReadError) as e:
+            raise NeedMoreDataError from e
+
         return record
 
     def unpackSubProtocol(self, buff: ByteBuffer) -> ByteBuffer:
@@ -92,16 +99,20 @@ class HTTPSConnection(ProtocolEstablishedConnection):
                 return False
         try:
             # https://upload.wikimedia.org/wikipedia/commons/d/d3/Full_TLS_1.2_Handshake.svg
-            if self.state.state == ConnectionStateType.CLIENT_HELLO_SENT:
+            if self.state.state in {ConnectionStateType.CLIENT_HELLO_SENT,
+                                    ConnectionStateType.SERVER_HELLO_RECEIVED}:
                 assert isinstance(data, records.HandshakeRecord)
+
                 for msg in data.messages:
                     if msg.messageType == MessageType.ServerHello:
                         assert self.state.state == ConnectionStateType.CLIENT_HELLO_SENT
                         self.state.state = ConnectionStateType.SERVER_HELLO_RECEIVED
+                        assert isinstance(msg, messages.ServerHelloMessage)
+                        self._handleServerHello(msg)
                     elif msg.messageType == MessageType.ServerHelloDone:
                         assert self.state.state == ConnectionStateType.SERVER_HELLO_RECEIVED
                         self.state.state = ConnectionStateType.SERVER_HELLO_DONE
-                        self._sendKey()
+                        self._handleServerHelloDone()
                         break
                     else:
                         if self.state.state != ConnectionStateType.SERVER_HELLO_RECEIVED:
@@ -119,24 +130,23 @@ class HTTPSConnection(ProtocolEstablishedConnection):
             else:
                 raise NotImplementedError(f"Unknown connection state {self.state.state.name}")
         except AlertCause as e:
-            self.sendData(records.AlertRecord(self.state, e.code, 2))
+            self.sendData(records.AlertRecord(self.state, e.code, 2), 1)
             self.close(e)
+        except (OutOfBoundsReadError, OutOfBoundsUndoError) as e:
+            print("DEBUG:", e)
+            raise NeedMoreDataError from e
         except Exception as e:
-            self.sendData(records.AlertRecord(self.state, 80, 2))
-            try:
-                # Not clean code :-/
-                raise AlertCause(80) from e
-            except AlertCause as ex:
-                self.close(ex)
+            self.sendData(records.AlertRecord(self.state, 80, 2), 1)
+            self.close(e)  # AlertCause(80))
 
         return False
 
     def _sendHello(self) -> None:
-        print("Send hello")
         assert self.state.state == ConnectionStateType.INIT
         hello = records.HandshakeRecord(self.state)
 
         extensions = [
+            # TODO Come up with actually useful extensions
             # https://datatracker.ietf.org/doc/html/rfc6520#autoid-4
             Extension(ExtensionType.HEARTBEAT, b'\x01'),
             # https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.2
@@ -151,9 +161,50 @@ class HTTPSConnection(ProtocolEstablishedConnection):
                                           extensions=extensions)
         hello.messages.append(msg)
         self.sendData(hello, 1)
-        print("Sent hello")
 
         self.state.state = ConnectionStateType.CLIENT_HELLO_SENT
+
+    # https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.3
+    def _handleServerHello(self, hello: messages.ServerHelloMessage) -> None:
+        # Handle the downgrading
+        if (self.state.version is TLSVersion.TLS_1_3 and
+                hello.protocolVersion is not TLSVersion.TLS_1_3):
+            if hello.protocolVersion is TLSVersion.TLS_1_2:
+                if not hello.random.endswith(b'DOWNGRD\x01'):
+                    raise AlertCause(47)
+            elif hello.protocolVersion <= TLSVersion.TLS_1_1:
+                if not hello.random.endswith(b'DOWNGRD\x00'):
+                    raise AlertCause(47)
+        elif (self.state.version is TLSVersion.TLS_1_2 and
+              hello.protocolVersion <= TLSVersion.TLS_1_1):
+            if hello.random.endswith(b'DOWNGRD\x01'):
+                raise AlertCause(47)
+        assert hello.protocolVersion <= TLSVersion.TLS_1_3, \
+            f"Unsupported TLS version {hello.protocolVersion.name}"
+        self.state.version = hello.protocolVersion  # Perform the downgrade/upgrade
+
+    def _handleServerHelloDone(self) -> None:
+        print("Server hello done!")
+        print(self._serverHelloMessages)
+
+        hasCertificate: bool = False
+        for msg in self._serverHelloMessages:
+            if isinstance(msg, messages.CertificateMessage):
+                hasCertificate = True
+                error = checkCertificate(msg)
+                if error != -1:
+                    raise AlertCause(error)
+        if not hasCertificate:
+            # Certificate is required!
+            # TODO Only require the certificate when the encryption requires it
+            if self.state.version is TLSVersion.TLS_1_3:
+                raise AlertCause(116)
+            elif self.state.version is TLSVersion.SSL_3_0:
+                raise AlertCause(41)
+            else:
+                raise AlertCause(40)
+
+        self._sendKey()
 
     def _sendKey(self) -> None:
         assert self.state.state == ConnectionStateType.SERVER_HELLO_DONE
@@ -172,3 +223,4 @@ class HTTPSConnection(ProtocolEstablishedConnection):
 
     def sendAlert(self, cause: AlertCause, warning: bool) -> None:
         alert = records.AlertRecord(self.state, cause.code, 1 if warning else 2)
+        raise NotImplementedError("Not implemented - sendAlert(cause, warning)")

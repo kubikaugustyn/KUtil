@@ -32,6 +32,7 @@ alertErrors: Final[dict[int, AlertError]] = {
     47: ("Illegal parameter", FATAL, ALL),
     50: ("Decode error", FATAL, TLS),
     70: ("Protocol version", FATAL, TLS),
+    80: ("Internal error", FATAL, TLS),
     120: ("No application protocol", FATAL, TLS3),
     255: ("No application protocol", FATAL, TLS3)
 }
