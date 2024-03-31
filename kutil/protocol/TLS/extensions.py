@@ -170,3 +170,23 @@ def readExtension(buff: ByteBuffer) -> Extension:
         extension = Extension(extensionType)
     extension.read(buff)
     return extension
+
+
+def readExtensions(buff: ByteBuffer, minByteSize: int) -> list[Extension]:
+    extensions = []
+    extensionLength = DataBuffer(buff).readUInt16()
+    assert minByteSize <= extensionLength <= pow(2, 16) - 1
+    extensionBuff = ByteBuffer(buff.read(extensionLength))
+    while extensionBuff.has(1):
+        extension = readExtension(extensionBuff)
+        extensions.append(extension)
+    return extensions
+
+
+def writeExtensions(buff: ByteBuffer, minByteSize: int, extensions: list[Extension]) -> None:
+    extensionBuff = ByteBuffer()
+    for extension in extensions:
+        extension.write(extensionBuff)
+    assert minByteSize <= len(extensionBuff.export()) <= pow(2, 16) - 1
+    DataBuffer(buff).writeUInt16(len(extensionBuff.export()))
+    buff.write(extensionBuff.export())

@@ -87,11 +87,16 @@ class ProtocolConnection:
                     return
                 buff.write(data)
                 buff.resetPointer()
-                while buff.has(1):
+                while buff.has(1) and not self.closed:
                     # Read all the packets that are packed tightly one after another
+                    # print(f"Pointer: {buff.pointer}, length: {len(buff.export())}")
+                    # print("Data:", buff.export())
                     if self.tryReceivedData(buff):
+                        # print(f"Pointer after read: {buff.pointer}")
                         buff.resetBeforePointer()
+                        # print(f"Length: {len(buff.export())}")
                     else:
+                        # print("Not successful")
                         break
         except OSError as e:
             self.close(e)
@@ -99,6 +104,16 @@ class ProtocolConnection:
             self.close(e)
 
     def tryReceivedData(self, buff: ByteBuffer) -> bool:
+        """
+        Tries to parse and handle the received data,
+        returning whether it succeeded (True) or needs more data (False)
+        :param buff: The source buffer
+        :return: succeeded (True) or needs more data (False)
+        """
+        if self.closed:
+            # If the connection is closed, don't even try
+            return True
+
         layerI: int = -1
         lastBuff: ByteBuffer = buff.copy()
         try:
@@ -129,6 +144,7 @@ class ProtocolConnection:
             # Basically, this error means that at the current layer we should stop unpacking the
             # protocol layers and pass the data directly to the connection to be processed and never
             # passed to the last protocol, because it's a not-final-layer data packet.
+            # print("Stop unpacking!")
             data: Any = self.layers[layerI].unpackData(lastBuff)
             dataInner: bool | Any = self.onDataInner(data, True, self.layers[layerI])
             assert isinstance(dataInner, bool) and dataInner is False

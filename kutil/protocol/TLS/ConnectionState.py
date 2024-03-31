@@ -1,16 +1,17 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+import os
+
+import urllib3.util
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dh
-from enum import Enum, unique, IntEnum
+from enum import Enum, unique, IntEnum, auto
 from typing import Self
 
-from kutil.protocol.TLS.tls_cryptography import generateKeypair
-
-from kutil.protocol.TLS.extensions import NamedGroup, KeyShareEntry, DHE_GROUPS, ECDHE_GROUPS
-
+from kutil.protocol.TLS.extensions import NamedGroup, KeyShareEntry
 from kutil.protocol.TLS.CipherSuite import CipherSuite
+from kutil.protocol.TLS.tls_cryptography import Certificate, generateKeypair
 
 
 @unique
@@ -45,23 +46,38 @@ class MACType(IntEnum):
     HMAC_MD5 = 16
 
 
+# Type of the exchanged key
+@unique
+class KeyExchangeAlgorithm(Enum):
+    DHE_DSS = auto()
+    DHE_RSA = auto()
+    DH_ANON = auto()
+    RSA = auto()
+    DH_DSS = auto()
+    DH_RSA = auto()
+
+
 @unique
 class ConnectionStateType(Enum):
     # TODO Figure out the real states
-    INIT = "INIT"
-    CLIENT_HELLO_SENT = "CLIENT_HELLO_SENT"
-    SERVER_HELLO_RECEIVED = "SERVER_HELLO_RECEIVED"
-    SERVER_HELLO_DONE = "SERVER_HELLO_DONE"
-    KEY_SENT = "KEY_SENT"
-    CHANGE_CIPHER_SENT = "CHANGE_CIPHER_SENT"
-    FINISHED_SENT = "FINISHED_SENT"
-    CHANGE_CIPHER_RECEIVED = "CHANGE_CIPHER_RECEIVED"
-    APPLICATION_DATA = "APPLICATION_DATA"
+    INIT = auto()
+    CLIENT_HELLO_SENT = auto()
+    SERVER_HELLO_RECEIVED = auto()
+    SERVER_HELLO_DONE = auto()
+    KEY_SENT = auto()
+    CHANGE_CIPHER_SENT = auto()
+    FINISHED_SENT = auto()
+    CHANGE_CIPHER_RECEIVED = auto()
+    APPLICATION_DATA = auto()
 
 
 class ConnectionState:
     state: ConnectionStateType
     mac: MACType | None
+    keyExchangeAlgorithm: KeyExchangeAlgorithm | None
+    rootCertificate: Certificate | None
+    certificates: list[Certificate]
+    verifiedCertificateChain: list[Certificate] | None
     _version: TLSVersion | None
     supportedCipherSuites: list[CipherSuite] = list(CipherSuite)  # Well, lets lie to the server...
     supportedGroups: list[NamedGroup] = [
@@ -81,12 +97,24 @@ class ConnectionState:
     ]
     clientSharedKeys: list[KeyShareEntry]
     _privateKeys: dict[NamedGroup, dh.DHPrivateKey]
+    pendingCipher: CipherSuite | None
+    _selectedCipher: CipherSuite | None
+    sessionID: bytes
+    serverDomainName: str | None
 
     def __init__(self):
         self.state = ConnectionStateType.INIT
         self.mac = None
+        self.keyExchangeAlgorithm = None
+        self.rootCertificate = None
+        self.certificates = []
+        self.verifiedCertificateChain = None
         self._version = None
         self._privateKeys = {}
+        self.pendingCipher = None
+        self._selectedCipher = None
+        self.sessionID = os.urandom(32)
+        self.serverDomainName = None
         self.clientSharedKeys = self.generateClientSharedKeys()
 
     def generateClientSharedKeys(self) -> list[KeyShareEntry]:
@@ -104,6 +132,23 @@ class ConnectionState:
                                                        serialization.PublicFormat.SubjectPublicKeyInfo)
                 keys.append(KeyShareEntry(group, public_bytes))
         return keys
+
+    def switchToPendingCipher(self, unsafe_allow_no_cipher: bool = False):
+        if not unsafe_allow_no_cipher and self.pendingCipher is None:
+            raise ValueError("Cannot switch to the pending cipher because it's None")
+        self._selectedCipher = self.pendingCipher
+
+    def setServerDomainName(self, url: str) -> None:
+        urlInfo = urllib3.util.parse_url(url)
+        self.serverDomainName = urlInfo.host
+
+    def addCertificates(self, certificates: list[Certificate]) -> None:
+        for certificate in certificates:
+            if self.rootCertificate is None:
+                # TODO Set the root certificate correctly
+                self.rootCertificate = certificate
+
+            self.certificates.append(certificate)
 
     @property
     def allowMAC(self) -> bool:

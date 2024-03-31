@@ -2,6 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from typing import Final
+from colorama import Fore, Style
 
 from kutil.protocol.TLS.ConnectionState import TLSVersion
 
@@ -16,6 +17,7 @@ type AlertError = tuple[str, AlertFatality, TLSVersion]
 ALL = sorted(list(TLSVersion))[0]
 TLS = TLSVersion.TLS_1_0
 TLS3 = TLSVersion.TLS_1_3
+SSL3 = TLSVersion.SSL_3_0
 
 # https://en.wikipedia.org/wiki/Transport_Layer_Security#Alert_protocol
 # https://datatracker.ietf.org/doc/html/rfc8446#section-6.2
@@ -29,6 +31,12 @@ alertErrors: Final[dict[int, AlertError]] = {
     22: ("Record overflow", FATAL, TLS),
     30: ("Decompression failure", FATAL, ALL),
     40: ("Handshake failure", FATAL, ALL),
+    41: ("No certificate", WARNING_FATAL, SSL3),
+    42: ("Bad certificate", WARNING_FATAL, ALL),
+    43: ("Unsupported certificate", WARNING_FATAL, ALL),
+    44: ("Certificate revoked", WARNING_FATAL, ALL),
+    45: ("Certificate expired", WARNING_FATAL, ALL),
+    46: ("Certificate unknown", WARNING_FATAL, ALL),
     47: ("Illegal parameter", FATAL, ALL),
     50: ("Decode error", FATAL, TLS),
     70: ("Protocol version", FATAL, TLS),
@@ -43,10 +51,16 @@ class AlertCause(Exception):
 
     def __init__(self, code: int):
         if code not in alertErrors:
-            raise ValueError("Invalid error code")
+            # raise ValueError("Invalid error code")
+            print(f"{Fore.RED}{self.__class__.__module__}: "
+                  f"Unknown error code: {code}{Style.RESET_ALL}")
 
         self.code = code
-        super().__init__(alertErrors[code][0])
+        if code in alertErrors:
+            error = alertErrors[code][0]
+        else:
+            error = "(Unknown error)"
+        super().__init__(error)
 
 
 __all__ = ["AlertCause", "alertErrors", "WARNING", "WARNING_FATAL", "FATAL", "AlertFatality"]

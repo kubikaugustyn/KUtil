@@ -4,13 +4,15 @@ __author__ = "kubik.augustyn@post.cz"
 from enum import IntEnum, unique, Enum
 from typing import Final, Self
 
+from kutil.protocol.AbstractProtocol import NeedMoreDataError
+
 from kutil.protocol.TLS.ConnectionState import ConnectionState, ConnectionStateType, TLSVersion
 
 from kutil.protocol.TLS.AlertCause import AlertCause
 
 from kutil.buffer.DataBuffer import DataBuffer
+from kutil.buffer.ByteBuffer import ByteBuffer, OutOfBoundsUndoError, OutOfBoundsReadError
 
-from kutil import ByteBuffer
 from kutil.buffer.Serializable import Serializable
 
 
@@ -22,6 +24,10 @@ class TLSRecordType(IntEnum):
     Handshake = 0x16
     Application = 0x17
     Heartbeat = 0x18
+
+
+class RawTLSRecordNeedMoreDataError(NeedMoreDataError):
+    pass
 
 
 class RawTLSRecord(Serializable):
@@ -72,41 +78,44 @@ class RawTLSRecord(Serializable):
         return rec
 
     def read(self, buff: ByteBuffer):
-        # Content type + version
-        contentType = self.readContentType(buff, False)
-        assert contentType == self.contentType, \
-            f"ContentType mismatch - {contentType.name} != {self.contentType.name}"
         try:
-            cmpVersion = TLSVersion((buff.readByte(), buff.readByte()))
-            if self.connectionState.version != cmpVersion:
-                raise ValueError
-        except (TypeError, ValueError) as e:
-            # Invalid version (doesn't exist or not set)
-            raise AlertCause(70) from e
+            # Content type + version
+            contentType = self.readContentType(buff, False)
+            assert contentType == self.contentType, \
+                f"ContentType mismatch - {contentType.name} != {self.contentType.name}"
+            try:
+                cmpVersion = TLSVersion((buff.readByte(), buff.readByte()))
+                if self.connectionState.version != cmpVersion:
+                    raise ValueError
+            except (TypeError, ValueError) as e:
+                # Invalid version (doesn't exist or not set)
+                raise AlertCause(70) from e
 
-        # Length
-        length = DataBuffer(buff).readUInt16()
-        assert 0 <= length < (1 << 14)
+            # Length
+            length = DataBuffer(buff).readUInt16()
+            assert 0 <= length < (1 << 14)
 
-        # Payload etc.
-        # Explained in:
-        # https://en.wikipedia.org/wiki/Transport_Layer_Security#Application_protocol
-        dataBuff: ByteBuffer = ByteBuffer(buff.read(length))
+            # Payload etc.
+            # Explained in:
+            # https://en.wikipedia.org/wiki/Transport_Layer_Security#Application_protocol
+            dataBuff: ByteBuffer = ByteBuffer(buff.read(length))
 
-        if self.connectionState.allowMAC:
-            macSize = self.connectionState.sizeMAC
-        else:
-            macSize = 0
-            self.mac = None
+            if self.connectionState.allowMAC:
+                macSize = self.connectionState.sizeMAC
+            else:
+                macSize = 0
+                self.mac = None
 
-        if self.connectionState.allowPadding:
-            paddingSize = dataBuff.readLastByte()
-        else:
-            paddingSize = 0
-            self.padding = None
+            if self.connectionState.allowPadding:
+                paddingSize = dataBuff.readLastByte()
+            else:
+                paddingSize = 0
+                self.padding = None
 
-        self.payload = dataBuff.read(length - macSize - paddingSize)
-        if macSize > 0:
-            self.mac = dataBuff.read(macSize)
-        if paddingSize > 0:
-            self.padding = dataBuff.read(paddingSize)
+            self.payload = dataBuff.read(length - macSize - paddingSize)
+            if macSize > 0:
+                self.mac = dataBuff.read(macSize)
+            if paddingSize > 0:
+                self.padding = dataBuff.read(paddingSize)
+        except (OutOfBoundsUndoError, OutOfBoundsReadError) as e:
+            raise RawTLSRecordNeedMoreDataError from e

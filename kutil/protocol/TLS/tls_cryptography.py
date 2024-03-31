@@ -5,9 +5,11 @@ import math
 import re
 from typing import Final
 
-from cryptography.hazmat.primitives import serialization
+from cryptography.x509 import load_der_x509_certificate, Certificate
 from cryptography.hazmat.primitives.asymmetric import dh, ec, x25519, x448
-from kutil.protocol.TLS.extensions import NamedGroup, KeyShareEntry, DHE_GROUPS, ECDHE_GROUPS
+from cryptography.hazmat.primitives.serialization import load_der_public_key
+
+from kutil.protocol.TLS.extensions import NamedGroup, DHE_GROUPS, ECDHE_GROUPS
 
 _clear_pattern: Final[re.Pattern] = re.compile(r"([^A-F0-9])+")
 
@@ -238,9 +240,22 @@ def generateX448PrivateKey() -> x448.X448PrivateKey:
 
 
 ###################################
+#       Certificates - X.509      #
+###################################
+
+def parseX509Certificate(raw: bytes) -> Certificate:
+    try:
+        return load_der_x509_certificate(raw)
+    except Exception as e:
+        from kutil.protocol.TLS.AlertCause import AlertCause
+        raise AlertCause(42) from e
+
+
+###################################
 #            Combined             #
 ###################################
 type AnyPrivateKey = dh.DHPrivateKey | ec.EllipticCurvePrivateKey | x25519.X25519PrivateKey | x448.X448PrivateKey
+type AnyPublicKey = dh.DHPublicKey | ec.EllipticCurvePublicKey | x25519.X25519PublicKey | x448.X448PublicKey
 
 
 def generateKeypair(group: NamedGroup) -> tuple[AnyPrivateKey, dh.DHPublicKey | None]:
@@ -256,4 +271,15 @@ def generateKeypair(group: NamedGroup) -> tuple[AnyPrivateKey, dh.DHPublicKey | 
         raise NotImplementedError(f"Unknown group {group}")
 
 
-__all__ = ["generateKeypair"]
+def parsePublicKey(raw: bytes) -> AnyPublicKey:
+    key = load_der_public_key(raw)
+    assert isinstance(key, (
+        dh.DHPublicKey,
+        ec.EllipticCurvePublicKey,
+        x25519.X25519PublicKey,
+        x448.X448PublicKey
+    ))
+    return key
+
+
+__all__ = ["generateKeypair", "parsePublicKey", "AnyPrivateKey", "AnyPublicKey", "Certificate"]
