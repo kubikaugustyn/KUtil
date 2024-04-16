@@ -9,7 +9,7 @@ class URLSearchParams:
 
     def __init__(self, val: Optional[str] = None):
         self.params = {}
-        if val.startswith("?"):
+        if val.startswith("?") or val.startswith("&"):
             val = val[1:]
         if val:
             self.parse(val)

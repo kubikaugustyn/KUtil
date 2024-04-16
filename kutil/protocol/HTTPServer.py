@@ -122,7 +122,8 @@ class HTTPServer(ProtocolServer):
     acceptWSChecker: AcceptWSChecker
 
     def __init__(self, address: tuple[str, int],
-                 onConnection: Callable[[ProtocolConnection], Callable[[Self, HTTPRequest], None]]):
+                 onConnection: Callable[[ProtocolConnection], Callable[[ProtocolConnection,
+                                                                        HTTPRequest], None]]):
         super().__init__(address, lambda conn: [TCPProtocol(conn), HTTPServerProtocol(conn)],
                          onConnection)
         self.acceptWSChecker = lambda x, y: False

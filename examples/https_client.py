@@ -35,6 +35,7 @@ def main():
     conn = HTTPSConnection(("google.com", 443), onData, onEstablished)
     conn.onCloseListeners.append(onClose)
     print("Connection started")
+    conn.close(NotImplemented("HTTPS in KUtil is not implemented (yet)"))
 
 
 if __name__ == '__main__':

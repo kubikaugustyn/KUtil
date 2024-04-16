@@ -111,7 +111,7 @@ server.listen()
         <td>Size of the tile</td>
         <td>No</td>
         <td>256</td>
-        <td>256, 256@2x (not for all mapTypes)</td>
+        <td>256, 256@2x (only for základní, turistická, zimní map types)</td>
     </tr>
     <tr>
         <td>lang</td>
@@ -124,7 +124,17 @@ server.listen()
 </table>
 <a href="https://developer.mapy.cz/rest-api/funkce/mapove-dlazdice/" target="_blank">
     Visit this page for more info about the tiles
-</a>
+</a><br>
+<h2>Example QGIS usage:</h2>
+<pre>
+http://localhost:999/tile/basic?x={x}&y={y}&z={z}&tileSize=256@2x&lang=en
+http://localhost:999/tile/outdoor?x={x}&y={y}&z={z}&tileSize=256@2x&lang=en
+http://localhost:999/tile/aerial?x={x}&y={y}&z={z}&tileSize=256&lang=en
+http://localhost:999/tile/names-overlay?x={x}&y={y}&z={z}&tileSize=256&lang=en
+http://localhost:999/tile/winter?x={x}&y={y}&z={z}&tileSize=256@2x&lang=en
+</pre>
+<br>
+<a target="_blank" href="/qgis.png"><img src="/qgis.png" alt="An example QGIS usage" width="750cm"></a>
 <h2>I want a valid API key</h2>
 <p>For that, I've added <a href="http://${HOST}:${PORT}/api_key.txt" target="_blank">this text</a> and <a
         href="http://${HOST}:${PORT}/api_key.json" target="_blank">this json</a> API endpoint.</p>

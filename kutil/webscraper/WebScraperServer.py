@@ -34,11 +34,13 @@ class WebScraperServer(ABC):
     def onData(self, conn: HTTPServerConnection, req: HTTPRequest):
         try:
             resp = self.onDataInner(conn, req)
+            assert isinstance(resp, HTTPResponse)
         except Exception as e:
             content = str(e)
             if not content:
                 content = str(type(e).__name__)
-            resp = HTTPResponse(500, "Internal server error", HTTPHeaders(), HTTPResponse.enc(content))
+            resp = HTTPResponse(500, "Internal server error", HTTPHeaders(),
+                                HTTPResponse.enc(content))
             resp.headers["Content-Type"] = "text/plain"
         # Don't close the socket if the client wants to request more data
         close = req.headers.get("Connection", "close") != "keep-alive"
@@ -47,7 +49,10 @@ class WebScraperServer(ABC):
 
     @abstractmethod
     def onDataInner(self, conn: HTTPServerConnection, req: HTTPRequest) -> HTTPResponse:
-        return HTTPResponse(405, "Method not Allowed", HTTPHeaders(), b'This is for websocket.')
+        headers = HTTPHeaders()
+        headers["Content-Type"] = "text/html"
+        return HTTPResponse(200, "OK", headers, b'WebScraperServer - rewrite the '
+                                                b'onDataInner method to handle incoming requests')
 
     @staticmethod
     def sendResponse(resp: HTTPResponse, conn: HTTPServerConnection, close: bool = True):
@@ -60,3 +65,17 @@ class WebScraperServer(ABC):
         headers: HTTPHeaders = HTTPHeaders()
         headers["Content-Type"] = "text/html"
         return HTTPResponse(400, "Bad request", headers, b'<h1>A bad request.</h1>')
+
+    @staticmethod
+    def badMethod() -> HTTPResponse:
+        headers: HTTPHeaders = HTTPHeaders()
+        headers["Content-Type"] = "text/html"
+        return HTTPResponse(405, "Method not allowed", headers,
+                            b'<h1>The requested method is not allowed.</h1>')
+
+    @staticmethod
+    def internalError() -> HTTPResponse:
+        headers: HTTPHeaders = HTTPHeaders()
+        headers["Content-Type"] = "text/html"
+        return HTTPResponse(500, "Internal server error", headers,
+                            b'<h1>An internal server error has occured.</h1>')

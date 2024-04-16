@@ -2,6 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 import json
+import os.path
 
 from kutil.buffer.ByteBuffer import ByteBuffer
 from kutil.typing_help import FinalStr, Final, Literal, overload
@@ -101,11 +102,25 @@ def changeNewline(nlType: NL_TYPE) -> None:
 # TODO Fix config and make this possible
 # changeNewline(Config().io.newline)
 
+def splitFileExtension(path: str) -> tuple[str, str]:
+    fn, ext = os.path.splitext(os.path.basename(path))
+    return fn, ext
+
+
+def getFileName(path: str) -> str:
+    return splitFileExtension(path)[0]
+
+
+def getFileExtension(path: str) -> str:
+    return splitFileExtension(path)[1]
+
+
 __all__ = [
     "readFile", "writeFile",
     "CR", "LF", "CRLF",
     "bCR", "bLF", "bCRLF",
     "cCR", "cLF",
     "NL", "bNL",
-    "changeNewline"
+    "changeNewline",
+    "splitFileExtension", "getFileName", "getFileExtension"
 ]

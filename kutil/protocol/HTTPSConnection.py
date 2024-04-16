@@ -242,6 +242,10 @@ class HTTPSConnection(ProtocolEstablishedConnection):
         # self.sendData(finished, 1)
         # self.state.state = ConnectionStateType.FINISHED_SENT
 
+        # https://github.com/tlsfuzzer/tlslite-ng/blob/master/tlslite/constants.py
+        # https://github.com/tlsfuzzer/tlslite-ng/blob/master/tlslite/messages.py
+        # https://github.com/tlsfuzzer/tlslite-ng/blob/master/tlslite/utils/codec.py
+
     def _prepareClientKeyExchangeMessage(self) -> messages.ClientKeyExchangeMessage:
         msg = messages.ClientKeyExchangeMessage(self.state.pendingCipher, self.state.version)
         # TODO Valid key exchange message

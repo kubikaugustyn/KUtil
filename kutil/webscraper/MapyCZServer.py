@@ -3,9 +3,11 @@ __author__ = "kubik.augustyn@post.cz"
 
 import json
 import re
-import time
-from typing import Optional
+from typing import Optional, Final
 import requests  # Sadly, Mapy.cz only supports HTTPS, which KUtil doesn't
+
+from kutil import ProtocolConnection, getFileExtension
+from kutil.protocol.HTTP.HTTPMethod import HTTPMethod
 from requests.cookies import RequestsCookieJar
 import os
 from enum import Enum, unique
@@ -32,31 +34,47 @@ class MapSet(Enum):
 
 class MapyCZServer(WebScraperServer):
     usageHTMLTemplate: Optional[bytes] = None
+    usageQGIS: Optional[bytes] = None
+    cacheControl: Final[str] = "max-age=3600, public"
 
     __scrapeAroundArgs: list[tuple]
     __cachedAPIKey: Optional[str]
     # Path to a cache directory, should be shared between users and not contain any sensitive data
     __cachePath: Optional[str]
     # Maximum size in images count stored
-    maxCacheSize: Optional[int]
+    __maxCacheSize: Optional[int]
+    # Maximum concurrent connections
+    __maxConnections: int
+    __workingConnections: list[ProtocolConnection]
     # Whether you want to start a new thread that will scrape tiles around your requested tile,
     # since you will probably want to move around
     __scrapeAroundAutomatically: bool
     __scrapeAroundWorkerWaiter: ThreadWaiter
     __cacheSizeLimiterWaiter: ThreadWaiter
+    __connectionCloseWaiter: ThreadWaiter
+    __sessions: list[requests.Session]
+    __sessionPointer: int
+    __sessionCount: int
 
     def __init__(self, port: int = 666, host: str = "localhost",
                  scrapeAroundAutomatically: bool = False,
-                 scrapeAroundWorkerCount: int = 1):
+                 scrapeAroundWorkerCount: int = 1, maxConnections: int = 5, sessionCount: int = 5):
         super().__init__(port, host)
         self.__scrapeAroundArgs = []
         self.__cachedAPIKey = None
         self.__cachePath = None
-        self.maxCacheSize = None
+        self.__maxCacheSize = None
+        self.__maxConnections = maxConnections
+        self.__workingConnections = []
         self.__scrapeAroundAutomatically = scrapeAroundAutomatically
         self.__scrapeAroundWorkerWaiter = ThreadWaiter()
         self.__cacheSizeLimiterWaiter = ThreadWaiter()
+        self.__connectionCloseWaiter = ThreadWaiter()
+        self.__sessions = []
+        self.__sessionPointer = 0
+        self.__sessionCount = sessionCount
         if scrapeAroundAutomatically:
+            print("Warning: Scrape around rises your CPU usage too much. I recommend not using it")
             for i in range(scrapeAroundWorkerCount):
                 t = Thread(target=self.__scrapeAroundWorker)
                 t.name = f"Scrape around worker #{i}"
@@ -65,17 +83,68 @@ class MapyCZServer(WebScraperServer):
         t.name = f"Cache size limiter worker"
         t.start()
 
-    def cache(self, cachePath: str):
+    def getSession(self) -> requests.Session:
+        while len(self.__sessions) < self.__sessionCount:
+            self.__sessions.append(requests.Session())
+        self.__sessionPointer = (self.__sessionPointer + 1) % len(self.__sessions)
+        return self.__sessions[self.__sessionPointer]
+
+    def cache(self, cachePath: str, maxCacheSize: int = 100):
         if cachePath is None:
             self.__cachePath = None
             return
         assert os.path.exists(cachePath) and os.path.isdir(cachePath), "Invalid cache directory"
         self.__cachePath = cachePath
 
+        assert 100 <= maxCacheSize <= 100_000  # Limit the cache size
+        self.__maxCacheSize = maxCacheSize
+
+    def onConnection(self, conn: ProtocolConnection):
+        conn.onCloseListeners.append(self.onConnectionClose)
+        return super().onConnection(conn)
+
+    def onConnectionClose(self, conn: ProtocolConnection, _) -> None:
+        if conn in self.__workingConnections:
+            raise ValueError("Connection closed before marked non-working")
+
+    def pushWorkingConnection(self, conn: ProtocolConnection):
+        if conn in self.__workingConnections:
+            raise ValueError("Cannot push an already-working connection")
+        self.__workingConnections.append(conn)
+
+    def popWorkingConnection(self, conn: ProtocolConnection):
+        if conn not in self.__workingConnections:
+            raise ValueError("Cannot pop a non-working connection")
+        self.__workingConnections.remove(conn)
+        self.__connectionCloseWaiter.release()
+
     def onDataInner(self, conn: HTTPServerConnection, req: HTTPRequest) -> HTTPResponse:
+        # print("URL:", req.requestURI)
         query = req.requestURI[req.requestURI.index("?"):] if "?" in req.requestURI else ""
         params: URLSearchParams = URLSearchParams(query)
         uriWithoutQuery = req.requestURI.split("?", maxsplit=1)[0]
+        if req.method != HTTPMethod.GET:
+            return WebScraperServer.badMethod()
+        # print(f"Handling the connection with {len(self.server.connections)} connections together")
+        retryCount = 0
+        while len(self.__workingConnections) > self.__maxConnections:
+            # Throttle the connections, so we don't use so much CPU and network
+            wasReleased: bool = self.__connectionCloseWaiter.wait(.5)
+
+            if not wasReleased:
+                # If the waiter timed out
+                retryCount += 1
+            if retryCount > 20:  # 10s timeout in total
+                print("Warning: request failed - too many requests")
+                headers: HTTPHeaders = HTTPHeaders()
+                headers["Content-Type"] = "text/html"
+                headers["Retry-After"] = str(
+                    max(1, 1 + len(self.server.connections) - self.__maxConnections))
+                body = HTTPResponse.enc(f'<h1>Too many requests.</h1>'
+                                        f'Currently actively handling {len(self.__workingConnections)} '
+                                        f'out of {len(self.server.connections)} requests.')
+                return HTTPResponse(429, "Too many requests", headers, body)
+
         if req.requestURI.startswith("/tile/"):
             mapSetStr = uriWithoutQuery[6:]
             try:
@@ -87,6 +156,7 @@ class MapyCZServer(WebScraperServer):
                     f'<a href="https://developer.mapy.cz/rest-api/funkce/mapove-dlazdice/">'
                     f'Visit this page for more info</a><br>'
                     f'Possible kinds:<br>{"<br>".join(map(lambda item: f"{item.name}: <b>{item.value}</b>", MapSet))}')
+                print(f"Bad request: unknown layer kind while requesting {req.requestURI}")
                 return resp
             try:
                 x = int(params["x"])
@@ -107,21 +177,33 @@ class MapyCZServer(WebScraperServer):
                              b'Required params: x, y, z (zoom), tileSize ("256" or "256@2x", by default "256"), lang '
                              b'(language - one of: cs - default, de, el, en, es, fr, it, nl, pl, pt, ru, sk, tr, uk)' +
                              HTTPResponse.enc("<br>Caused by error: " + str(e)))
+                print(f"Bad request: bad params while requesting {req.requestURI}")
                 return resp
             # Scrape for the image
-            image: bytes = self.__scrape(x, y, zoom, tileSize, mapSet, lang)
+            try:
+                self.pushWorkingConnection(conn)
+                image: bytes = self.__scrape(x, y, zoom, tileSize, mapSet, lang)
+            except Exception as e:
+                print("Unexpected error:", e)
+                return WebScraperServer.internalError()
+            finally:
+                self.popWorkingConnection(conn)
             # Form a response
             headers: HTTPHeaders = HTTPHeaders()
             headers["Content-Type"] = "image/png"
+            headers["Cache-Control"] = MapyCZServer.cacheControl
             resp: HTTPResponse = HTTPResponse(200, "OK", headers, image)
             return resp
         elif req.requestURI == "/api_key.txt":
+            self.pushWorkingConnection(conn)
             headers: HTTPHeaders = HTTPHeaders()
             headers["Content-Type"] = "text/plain"
             resp: HTTPResponse = HTTPResponse(200, "OK", headers,
                                               HTTPResponse.enc(self.__obtainAPIKey()))
+            self.popWorkingConnection(conn)
             return resp
         elif req.requestURI == "/api_key.json":
+            self.pushWorkingConnection(conn)
             headers: HTTPHeaders = HTTPHeaders()
             headers["Content-Type"] = "application/json"
             try:
@@ -130,6 +212,7 @@ class MapyCZServer(WebScraperServer):
                 body = {"key": None, "error": True, "error_str": str(e)}
             resp: HTTPResponse = HTTPResponse(200, "OK", headers,
                                               HTTPResponse.enc(json.dumps(body)))
+            self.popWorkingConnection(conn)
             return resp
         elif uriWithoutQuery == "/routing/route":
             # https://api.mapy.cz/v1/docs/routing/
@@ -141,10 +224,12 @@ class MapyCZServer(WebScraperServer):
             kind = uriWithoutQuery[11:]
             assert kind in ("rgeocode", "geocode", "suggest"), "Invalid kind"
             uri = f"https://api.mapy.cz/v1/{kind}?{params}&apikey=API"
+        elif req.requestURI == "/qgis.png":
+            return self.__getQgis()
         else:
             # If a bad endpoint is requested, show the usage page
             return self.__getUsage()
-        return self.__performRequest(uri)
+        return self.__performRequest(uri, conn)
 
     def __getUsage(self) -> HTTPResponse:
         html: bytes = MapyCZServer.__getUsageHTMLTemplate()
@@ -155,8 +240,17 @@ class MapyCZServer(WebScraperServer):
         resp: HTTPResponse = HTTPResponse(200, "OK", headers, html)
         return resp
 
-    def __performRequest(self, uri: str) -> HTTPResponse:
+    def __getQgis(self) -> HTTPResponse:
+        html: bytes = MapyCZServer.__getUsageQGIS()
+        headers: HTTPHeaders = HTTPHeaders()
+        headers["Content-Type"] = "image/png"
+        resp: HTTPResponse = HTTPResponse(200, "OK", headers, html)
+        return resp
+
+    def __performRequest(self, uri: str, conn: ProtocolConnection) -> HTTPResponse:
+        self.pushWorkingConnection(conn)
         r = self.__authorizedGetRequest(uri, force200=False)
+        self.popWorkingConnection(conn)
         headers = HTTPHeaders()
         for name, value in r.headers.lower_items():
             if name not in ("content-type", "content-encoding"):
@@ -168,16 +262,16 @@ class MapyCZServer(WebScraperServer):
     def __obtainAPIKey(self, forceReObtain: bool = False) -> str:
         if self.__cachedAPIKey is not None and not forceReObtain:
             return self.__cachedAPIKey
-        r = requests.get("https://api.mapy.cz/virtual-key.js")
+        r = self.getSession().get("https://api.mapy.cz/virtual-key.js")
         assert r.status_code == 200, f"Bad status code ({r.status_code}) - __scrape failed - API key obtaining"
         self.__cachedAPIKey = re.match('Loader\\.apiKey = "(\\S+)"', r.text).group(1)
         return self.__cachedAPIKey
 
     def __authorizedGetRequest(self, uri: str, force200: bool = True) -> requests.Response:
-        r = requests.get(uri.replace("API", self.__obtainAPIKey()))
+        r = self.getSession().get(uri.replace("API", self.__obtainAPIKey()))
         # print(r.url)
         if r.status_code != 200:
-            r = requests.get(uri.replace("API", self.__obtainAPIKey(True)))
+            r = self.getSession().get(uri.replace("API", self.__obtainAPIKey(True)))
         if force200:
             assert r.status_code == 200, f"Bad status code ({r.status_code}) - scrape failed - response obtaining"
         return r
@@ -287,6 +381,8 @@ class MapyCZServer(WebScraperServer):
                                   canScrapeAround=False)
                 except requests.exceptions.SSLError:
                     pass  # EOF occurred in violation of protocol - IDK why
+                except AssertionError:
+                    pass  # If the scrape fails, don't care
         # print("Scraped around.")
 
     def __storeToCache(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet, lang: str,
@@ -310,11 +406,16 @@ class MapyCZServer(WebScraperServer):
     def __cleanExcessCacheItems(self):
         while True:
             self.__cacheSizeLimiterWaiter.wait()
-            if self.__cachePath is None:
+            if self.__cachePath is None or self.__maxCacheSize is None:
                 continue
+            toLeaveCount = int(self.__maxCacheSize * .9)
             files: dict[str, float] = {}  # File name: file last edited
             for dirEntry in os.scandir(self.__cachePath):
                 if dirEntry.is_dir():
+                    continue
+                ext = getFileExtension(dirEntry.name)
+                if ext != ".png":
+                    # Do not delete non-png files
                     continue
                 try:
                     theTime = dirEntry.stat().st_birthtime
@@ -322,15 +423,16 @@ class MapyCZServer(WebScraperServer):
                     theTime = dirEntry.stat().st_mtime
                 files[dirEntry.name] = theTime
             fileNames: list[str] = list(files.keys())
+
             fileNames.sort(key=lambda fn: round(files[fn]), reverse=True)
             # Now, fileNames are sorted by their age, newest first, oldest last
-            if len(fileNames) < self.maxCacheSize - 1:
-                return
-            filesToDelete = fileNames[self.maxCacheSize - 1:]
+            if len(fileNames) < self.__maxCacheSize:
+                continue
+            filesToDelete = fileNames[toLeaveCount:]
             for file in filesToDelete:
                 path = os.path.join(self.__cachePath, file)
                 if not os.path.exists(path):
-                    return
+                    continue
                 os.remove(path)
 
     def __getCacheKey(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet,
@@ -346,6 +448,7 @@ class MapyCZServer(WebScraperServer):
 
     @staticmethod
     def __setCookies(jar: RequestsCookieJar, response: requests.Response):
+        # UNUSED!
         if response.status_code != 200:
             print(response.status_code)
             print(response)
@@ -365,3 +468,11 @@ class MapyCZServer(WebScraperServer):
         with open(os.path.join(os.path.dirname(__file__), "MapyCZServerUsage.html"), "rb") as f:
             MapyCZServer.usageHTMLTemplate = f.read()
         return MapyCZServer.usageHTMLTemplate
+
+    @staticmethod
+    def __getUsageQGIS() -> bytes:
+        if MapyCZServer.usageQGIS is not None:
+            return MapyCZServer.usageQGIS
+        with open(os.path.join(os.path.dirname(__file__), "MapyCZServerQGIS.png"), "rb") as f:
+            MapyCZServer.usageQGIS = f.read()
+        return MapyCZServer.usageQGIS
