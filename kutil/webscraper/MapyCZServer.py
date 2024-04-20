@@ -32,10 +32,21 @@ class MapSet(Enum):
     ZIMNI = "winter"
 
 
+imageTypes: Final[dict[MapSet, str]] = {
+    MapSet.ZAKLADNI: "png",
+    MapSet.TURISTICKA: "png",
+    MapSet.LETECKA: "jpg",
+    MapSet.POPISKY_A_HRANICE: "png",
+    MapSet.ZIMNI: "png"
+}
+
+
 class MapyCZServer(WebScraperServer):
     usageHTMLTemplate: Optional[bytes] = None
     usageQGIS: Optional[bytes] = None
     cacheControl: Final[str] = "max-age=3600, public"
+    languages: Final[set[str]] = {"cs", "de", "el", "en", "es", "fr", "it", "nl", "pl", "pt",
+                                  "ru", "sk", "tr", "uk"}
 
     __scrapeAroundArgs: list[tuple]
     __cachedAPIKey: Optional[str]
@@ -147,17 +158,9 @@ class MapyCZServer(WebScraperServer):
 
         if req.requestURI.startswith("/tile/"):
             mapSetStr = uriWithoutQuery[6:]
-            try:
-                mapSet = MapSet(mapSetStr)
-            except (KeyError, TypeError, ValueError):
-                resp = WebScraperServer.badRequest()
-                resp.body = HTTPResponse.enc(
-                    f'<h1>Bad request - unknown layer kind: {mapSetStr}</h1>'
-                    f'<a href="https://developer.mapy.cz/rest-api/funkce/mapove-dlazdice/">'
-                    f'Visit this page for more info</a><br>'
-                    f'Possible kinds:<br>{"<br>".join(map(lambda item: f"{item.name}: <b>{item.value}</b>", MapSet))}')
-                print(f"Bad request: unknown layer kind while requesting {req.requestURI}")
-                return resp
+            mapSet = self.__parseMapSet(mapSetStr, req.requestURI)
+            if isinstance(mapSet, HTTPResponse):
+                return mapSet
             try:
                 x = int(params["x"])
                 y = int(params["y"])
@@ -169,14 +172,15 @@ class MapyCZServer(WebScraperServer):
                 if tileSize == "256@2x":
                     assert mapSet in (MapSet.ZAKLADNI, MapSet.TURISTICKA, MapSet.ZIMNI), \
                         "Invalid tile size - used 256@2x in other mapSet than ZAKLADNI, TURISTICKA, ZIMNI"
-                assert lang in ("cs", "de", "el", "en", "es", "fr", "it", "nl", "pl", "pt",
-                                "ru", "sk", "tr", "uk"), "Invalid language"
+                assert lang in MapyCZServer.languages, "Invalid language"
             except (ValueError, KeyError, AssertionError) as e:
                 resp = WebScraperServer.badRequest()
                 resp.body = (b'<h1>Bad request - bad params</h1>'
-                             b'Required params: x, y, z (zoom), tileSize ("256" or "256@2x", by default "256"), lang '
-                             b'(language - one of: cs - default, de, el, en, es, fr, it, nl, pl, pt, ru, sk, tr, uk)' +
-                             HTTPResponse.enc("<br>Caused by error: " + str(e)))
+                             b'Required params: x, y, z (zoom), tileSize ("256" or "256@2x", '
+                             b'by default "256"), lang ' +
+                             HTTPResponse.enc(f"(language (default: cs) - one "
+                                              f"of: {', '.join(MapyCZServer.languages)})"
+                                              f"<br>Caused by error: {str(e)}"))
                 print(f"Bad request: bad params while requesting {req.requestURI}")
                 return resp
             # Scrape for the image
@@ -190,9 +194,41 @@ class MapyCZServer(WebScraperServer):
                 self.popWorkingConnection(conn)
             # Form a response
             headers: HTTPHeaders = HTTPHeaders()
-            headers["Content-Type"] = "image/png"
+            headers["Content-Type"] = f"image/{imageTypes[mapSet]}"
             headers["Cache-Control"] = MapyCZServer.cacheControl
             resp: HTTPResponse = HTTPResponse(200, "OK", headers, image)
+            return resp
+        elif uriWithoutQuery == "/tiles.json":
+            try:
+                mapSetStr = params["mapSet"]
+                lang = params.get("lang", "cs")
+                assert lang in MapyCZServer.languages, "Invalid language"
+            except KeyError as e:
+                resp = WebScraperServer.badRequest()
+                resp.body = HTTPResponse.enc(
+                    f'<h1>Bad request - bad params</h1>'
+                    f'Required params: mapSet, lang (language (default: cs) - one of: '
+                    f'{", ".join(MapyCZServer.languages)})<br>Caused by error: {str(e)}'
+                )
+                print(f"Bad request: bad params while requesting {req.requestURI}")
+                return resp
+            mapSet = self.__parseMapSet(mapSetStr, req.requestURI)
+            if isinstance(mapSet, HTTPResponse):
+                return mapSet
+            # Scrape for the tiles.json file
+            try:
+                self.pushWorkingConnection(conn)
+                tilesJson: bytes = self.__scrapeTilesJson(mapSet, lang)
+            except Exception as e:
+                print("Unexpected error:", e)
+                return WebScraperServer.internalError()
+            finally:
+                self.popWorkingConnection(conn)
+            # Form a response
+            headers: HTTPHeaders = HTTPHeaders()
+            headers["Content-Type"] = "application/json"
+            headers["Cache-Control"] = MapyCZServer.cacheControl
+            resp: HTTPResponse = HTTPResponse(200, "OK", headers, tilesJson)
             return resp
         elif req.requestURI == "/api_key.txt":
             self.pushWorkingConnection(conn)
@@ -231,6 +267,20 @@ class MapyCZServer(WebScraperServer):
             return self.__getUsage()
         return self.__performRequest(uri, conn)
 
+    def __parseMapSet(self, mapSetName: str, requestURI: str) -> MapSet | HTTPResponse:
+        try:
+            mapSet = MapSet(mapSetName)
+            return mapSet
+        except (KeyError, TypeError, ValueError):
+            resp = WebScraperServer.badRequest()
+            resp.body = HTTPResponse.enc(
+                f'<h1>Bad request - unknown layer kind: {mapSetName}</h1>'
+                f'<a href="https://developer.mapy.cz/rest-api/funkce/mapove-dlazdice/">'
+                f'Visit this page for more info</a><br>'
+                f'Possible kinds:<br>{"<br>".join(map(lambda item: f"{item.name}: <b>{item.value}</b>", MapSet))}')
+            print(f"Bad request: unknown layer kind while requesting {requestURI}")
+            return resp
+
     def __getUsage(self) -> HTTPResponse:
         html: bytes = MapyCZServer.__getUsageHTMLTemplate()
         html = html.replace(b'${HOST}', HTTPResponse.enc(self.host))
@@ -268,13 +318,23 @@ class MapyCZServer(WebScraperServer):
         return self.__cachedAPIKey
 
     def __authorizedGetRequest(self, uri: str, force200: bool = True) -> requests.Response:
+        if "API" not in uri:
+            raise ValueError("Invalid authorized request URI - no authorization present")
         r = self.getSession().get(uri.replace("API", self.__obtainAPIKey()))
         # print(r.url)
         if r.status_code != 200:
+            if r.status_code == 401:
+                print("Scrape failed - invalid API key (re-obtaining)")
             r = self.getSession().get(uri.replace("API", self.__obtainAPIKey(True)))
         if force200:
-            assert r.status_code == 200, f"Bad status code ({r.status_code}) - scrape failed - response obtaining"
+            assert r.status_code == 200, \
+                f"Bad status code ({r.status_code}) - scrape failed - response obtaining"
         return r
+
+    def __scrapeTilesJson(self, mapSet: MapSet, lang: str) -> bytes:
+        uri: str = f"https://api.mapy.cz/v1/maptiles/{mapSet.value}/tiles.json?apikey=API&lang={lang}"
+        r = self.__authorizedGetRequest(uri)
+        return r.content
 
     def __scrape(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet, lang: str,
                  canScrapeAround: bool = True) -> bytes:
@@ -414,8 +474,8 @@ class MapyCZServer(WebScraperServer):
                 if dirEntry.is_dir():
                     continue
                 ext = getFileExtension(dirEntry.name)
-                if ext != ".png":
-                    # Do not delete non-png files
+                if ext != ".png" and ext != ".jpg":
+                    # Do not delete non-png and non-jpg files
                     continue
                 try:
                     theTime = dirEntry.stat().st_birthtime
@@ -438,8 +498,8 @@ class MapyCZServer(WebScraperServer):
     def __getCacheKey(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet,
                       lang: str) -> str:
         if zoom <= 6:
-            return f"{x}_{y}_{zoom}_{tileSize}_{mapSet.value}_{lang}.png"
-        return f"{x}_{y}_{zoom}_{tileSize}_{mapSet.value}.png"
+            return f"{x}_{y}_{zoom}_{tileSize}_{mapSet.value}_{lang}.{imageTypes[mapSet]}"
+        return f"{x}_{y}_{zoom}_{tileSize}_{mapSet.value}.{imageTypes[mapSet]}"
 
     def __getCacheFilePath(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet,
                            lang: str) -> str:
