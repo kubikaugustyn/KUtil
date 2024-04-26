@@ -31,23 +31,36 @@ class ByteBuffer(Iterable[int]):
     _dataBuffer: Optional[object]  # DataBuffer
 
     def __init__(self, dataOrLength: Iterable[int] | int = 0):
-        if isinstance(dataOrLength, int):
-            self.data = bytearray(dataOrLength)
-        else:
-            self.data = bytearray(dataOrLength)
+        """
+        Creates a ByteBuffer either by a length or its initial data.
+        :param dataOrLength: Data length or initial data
+        """
+        self.data = bytearray(dataOrLength)
         self.pointer = 0
         self._dataBuffer = None
 
     def readByte(self) -> int:
+        """
+        Reads the next byte from the buffer at the pointer.
+        :return: The read byte
+        """
         self.assertHas(1)
         self.pointer += 1
         return self.data[self.pointer - 1]
 
     def readLastByte(self) -> int:
+        """
+        Reads the last byte from the buffer.
+        :return: The last byte
+        """
         assert len(self.data) > 0
         return self.data[-1]
 
     def read(self, amount: int) -> bytearray:
+        """
+        Reads the next amount bytes from the buffer at the pointer.
+        :return: The read bytes
+        """
         if amount == 0:
             return bytearray()
         self.assertHas(amount)
@@ -55,32 +68,63 @@ class ByteBuffer(Iterable[int]):
         return self.data[self.pointer - amount:self.pointer]
 
     def readLine(self, newLine: bytes = b"\r\n") -> bytearray:
+        """
+        Reads the next bytes from the buffer at the pointer to a new line.
+        :param newLine: The new line bytes to read until
+        :return: The read line
+        """
         amount: int = self.index(newLine)
         data: bytearray = self.read(amount) if amount > 0 else bytearray()
         self.skip(len(newLine))
         return data
 
     def index(self, seq: bytes) -> int:
+        """
+        Returns the index of the first byte in seq within the buffer from the pointer.
+        :param seq: The bytes to find the index of.
+        :return: The index of the first byte in seq within the buffer from the pointer
+        :exception IndexError: If the sequence is not found
+        """
         self.assertHas(len(seq))
         for i in range(len(self) - len(seq) + 1):
             if self.data[self.pointer + i:self.pointer + i + len(seq)] == seq:
                 return i
         raise IndexError
 
-    def skip(self, amount: int):
+    def skip(self, amount: int) -> Self:
+        """
+        Skips the amount bytes of the buffer at the pointer.
+        :param amount: The amount to skip
+        :return: Self to support chaining
+        """
         assert amount > 0
         self.assertHas(amount)
         self.pointer += amount
+        return self
 
-    def back(self, amount: int):
+    def back(self, amount: int) -> Self:
+        """
+        Goes back the amount bytes of the buffer from the pointer.
+        :param amount: The amount to go back by
+        :return: Self to support chaining
+        """
         assert amount > 0
         self.assertHas(-amount)
         self.pointer -= amount
+        return self
 
     def __len__(self) -> int:
+        """
+        Returns the length left of the buffer from the pointer.
+        :return:
+        """
         return len(self.data) - self.pointer
 
     def readRest(self) -> bytearray:
+        """
+        Reads all bytes from the buffer starting at the pointer.
+        :return: All the bytes left
+        """
         if len(self) == 0:
             return bytearray(0)
         self.assertHas(1)
@@ -89,6 +133,13 @@ class ByteBuffer(Iterable[int]):
         return self.data[self.pointer - amount:self.pointer]
 
     def writeByte(self, byte: int, i: int = -1) -> Self:
+        """
+        Writes a byte at the end or a particular index of the buffer,
+        not caring about the current pointer.
+        :param byte: The byte to write
+        :param i: An index to write it to, -1 for the end
+        :return: Self to support chaining
+        """
         if i == -1:
             self.data.append(byte)
         else:
@@ -96,6 +147,13 @@ class ByteBuffer(Iterable[int]):
         return self
 
     def write(self, data: Iterable[int], i: int = -1) -> Self:
+        """
+        Writes data at the end or a particular index of the buffer,
+        not caring about the current pointer.
+        :param data: The bytes to write
+        :param i: An index to write it to, -1 for the end
+        :return: Self to support chaining
+        """
         if i == -1:
             self.data.extend(data)
         else:
@@ -104,9 +162,18 @@ class ByteBuffer(Iterable[int]):
         return self
 
     def export(self) -> bytes:
+        """
+        Returns the current buffer's bytes.
+        :return: The current buffer's bytes
+        """
         return bytes(self.data)
 
     def reset(self, data: Optional[Iterable[int]] = None) -> Self:
+        """
+        Resets the buffer's data to the given data if provided and sets the pointer to 0.
+        :param data: The data to reset the buffer with (optional)
+        :return: Self to support chaining
+        """
         self.resetPointer()
         self.data.clear()
         if data is not None:
@@ -114,15 +181,31 @@ class ByteBuffer(Iterable[int]):
         return self
 
     def resetBeforePointer(self) -> Self:
+        """
+        Removes the buffer's data before the pointer, setting the pointer to 0.
+        :return: Self to support chaining
+        """
         self.data = self.data[self.pointer:]
         self.resetPointer()
         return self
 
     def resetPointer(self) -> Self:
+        """
+        Sets the pointer to 0.
+        :return: Self to support chaining
+        """
         self.pointer = 0
         return self
 
-    def assertHas(self, amount: int) -> bool:
+    def assertHas(self, amount: int) -> None:
+        """
+        Checks if the buffer can read/undo the given number of bytes.
+
+        See also has()
+        :param amount: The amount to check
+        :exception OutOfBoundsReadError: If the amount is positive and out of bounds
+        :exception OutOfBoundsUndoError: If the amount is negative and out of bounds
+        """
         if amount == 0:
             raise ValueError("Invalid amount")
         bytesLeft: int = len(self.data) - self.pointer
@@ -134,9 +217,15 @@ class ByteBuffer(Iterable[int]):
             if len(self.data) < self.pointer + amount:
                 raise OutOfBoundsReadError(
                     f"Not enough bytes (reading {amount}, but {bytesLeft} are available)")
-        return True
 
     def has(self, amount: int) -> bool:
+        """
+        Checks if the buffer can read/undo the given number of bytes.
+
+        See also assertHas()
+        :param amount: The amount to check
+        :returns: True if the buffer can read/undo the given number of bytes, otherwise False
+        """
         if amount == 0:
             return True
         if amount < 0:
@@ -148,6 +237,10 @@ class ByteBuffer(Iterable[int]):
         return True
 
     def copy(self) -> Self:
+        """
+        Copies a buffer into a new buffer, with a new data copy.
+        :return: The copied buffer
+        """
         copyBuff = ByteBuffer()
         copyBuff.data = copy.copy(self.data)
         copyBuff.pointer = self.pointer
@@ -161,6 +254,8 @@ class ByteBuffer(Iterable[int]):
     def getDataBuffer(self):
         """
         Returns the cached data buffer if it exists, otherwise returns None.
+
+        For internal use only.
         :return: The DataBuffer or None
         """
         return self._dataBuffer
@@ -168,6 +263,8 @@ class ByteBuffer(Iterable[int]):
     def setDataBuffer(self, buffer):
         """
         Caches the data buffer.
+
+        For internal use only.
         :param buffer: The data buffer to set
         """
         from kutil.buffer.DataBuffer import DataBuffer  # Hope it's cached

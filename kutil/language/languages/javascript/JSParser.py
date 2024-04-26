@@ -258,7 +258,7 @@ class JSParser(OneUseParser):
         Always throws an exception.
         :param token: The token that caused the error
         :param message: The message with further information
-        :raise JSParserError: Always
+        :exception JSParserError: Always
         :return:
         """
         raise self.unexpectedTokenError(token, message)

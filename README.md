@@ -11,6 +11,8 @@ Sadly, the name `kutil` is already used, but I sneaked it to PyPI with a differe
 pip3 install KUtil-jakubaugustyn
 ```
 
+See it on PyPI [here](https://pypi.org/project/KUtil-jakubaugustyn/).
+
 # Installation
 
 To manually install KUtil, download the repository [here](https://github.com/kubikaugustyn/KUtil) and copy
@@ -25,3 +27,163 @@ using command like this:
 ```console
 mklink /d C:\Python312\Lib\kutil "C:\Users\user\path\to\folder\KUtil\kutil"
 ```
+
+# Features
+
+## kutil.buffer
+
+### ByteBuffer
+
+ByteBuffer is a basic class, extending the functionality of a native `bytearray` with a read pointer, read and write
+safety and the ability to upgrade it to a DataBuffer.
+
+```python
+# Import the class
+from kutil import ByteBuffer
+# OR
+from kutil.buffer.ByteBuffer import ByteBuffer
+
+# Init the buffer:
+buff = ByteBuffer(b'input data')  # Creates a buffer with the data
+# OR
+buff = ByteBuffer(10)  # Creates a buffer with 10 nulled bytes, keeping the reading pointer at 0
+
+# Write at the end of the buffer:
+buff.writeByte(69)  # Writes a single byte at the end of the buffer
+buff.write(b'hello')  # Writes an integer iterable at the end of the buffer
+buff.write(..., i=2)  # Writes to index 2 of the buffer, moving the data after it
+
+# Read from the buffer:
+byte = buff.readByte()  # Reads a single byte at the pointer, advancing the pointer accordingly
+data = buff.read(5)  # Reads 5 bytes at the pointer, advancing the pointer accordingly
+
+# Export the data from the buffer properly:
+allData = buff.export()
+
+# Reset the buffer properly:
+buff.reset()
+
+# Advanced functions:
+buff.has(5)  # Check whether we can read 5 bytes from the buffer
+buff.has(-5)  # Check whether we can undo by 5 bytes in the buffer
+buff.assertHas(5)  # Same as buff.has(), but throws an error instead of returning False
+buff.back(5)  # Moves the pointer back by 5 bytes
+buff.skip(5)  # Moves the pointer forward by 5 bytes
+buff.readLine()  # Reads the next line, omitting the newline bytes, but skipping them
+buff.readRest()  # Reads all the bytes left in the buffer
+buff.resetPointer()  # Moves the pointer to the beginning (0)
+# and more...
+```
+
+### DataBuffer
+
+DataBuffer is a class extending the functionality of a ByteBuffer with a writing ints, strings, etc. and the ability
+to downgrade it to a ByteBuffer.
+
+Note that every number is **big endian**!
+
+```python
+# Import the class
+from kutil import DataBuffer
+# OR
+from kutil.buffer.DataBuffer import DataBuffer
+
+# Init the buffer:
+dBuff = DataBuffer()  # Creates a blank data buffer
+# OR
+buff: ByteBuffer = ...
+dBuff = DataBuffer(buff)  # Upgrades a buffer to a data buffer
+
+# Write ints:
+# Unsigned - writeUInt<n>() where n is the amount of bits
+dBuff.writeUInt32(69)
+# Signed - writeInt<n>()
+dBuff.writeInt64(69)
+# Arbitrary byte size
+dBuff.writeUInt(69, byteSize=3)
+dBuff.writeInt(69, byteSize=3)
+
+# Read ints (same naming as when writing):
+num = dBuff.readUInt32()
+num2 = dBuff.readInt16()
+
+# Downgrade to the underlying buffer properly:
+buff: ByteBuffer = dBuff.buff
+
+# Reset the buffer properly:
+dBuff.reset()
+
+# For advanced functions, see the source code.
+```
+
+### Serializable
+
+Serializable is an abstract class marking a class as being serializable. That means that the class implements the read
+and write methods. These classes are mainly used to implement various kinds of packets.
+
+```python
+# Import the class
+from kutil import Serializable, ByteBuffer
+# OR
+from kutil.buffer.Serializable import Serializable
+
+
+class MyStruct(Serializable):
+    data: bytes  # An example field to show the usage
+
+    def read(self, buff: ByteBuffer):
+        # Read your data from the provided buffer, upgrade to a DataBuffer if needed
+
+        self.data = bytes(buff.read(buff.readByte()))  # Reads a length-prefixed bytes field
+
+    def write(self, buff: ByteBuffer):
+        # Write your data to the provided buffer. Do not go back or read from it in any way!
+
+        buff.writeByte(len(self.data)).write(self.data)
+```
+
+## kutil.io
+
+### File helpers
+
+The `kutil.io.file` helper module serves as a collection of file helpers.
+
+```python
+# Import the functions (you can use import ... from ... too)
+import kutil.io.file as f
+
+text = f.readFile("/path/to/file", "text")  # Loads a file as raw text
+data = f.readFile("/path/to/file", "json")  # Loads a file as json
+
+f.writeFile("/path/to/file", "Hello world")  # Writes raw text to file
+f.writeFile("/path/to/file", {})  # Writes JSON to file
+
+# f.NL and its bytes representation f.bNL are set with
+f.changeNewline("CRLF")  # Sets the CRLF scheme
+
+# Get file names and extensions
+filename, extension = f.splitFileExtension("/path/to/file")
+filename = f.getFileName("/path/to/file")
+extension = f.getFileExtension("/path/to/file")
+```
+
+### Directory helpers
+
+The `kutil.io.directory` helper module serves as a collection of directory helpers.
+
+```python
+# Import the functions (you can use import ... from ... too)
+import kutil.io.directory as d
+
+# Iterate over directory files or subdirectories
+fileIter = d.enumFiles("/path/to/dir", extendedInfo=False)
+subdirIter = d.enumDirs("/path/to/dir", extendedInfo=False)
+
+# Get directory's parent
+parent = d.getDirParent("/path/to/dir")
+```
+
+# TODO
+
+This readme is TODO — not all features may be covered yet. Don't worry and contact me if you are uncertain regarding
+some behavior, functions or classes.
