@@ -93,7 +93,7 @@ class HTTPSConnection(ProtocolEstablishedConnection):
         self._sendHello()
 
     def onDataInner(self, data: Any, stoppedUnpacking: bool = False,
-                    layer: AbstractProtocol | None = None) -> bool | Any:
+                    layer: Optional[AbstractProtocol] = None) -> bool | Any:
         if not stoppedUnpacking:
             return True
         assert isinstance(layer, TLSProtocol)

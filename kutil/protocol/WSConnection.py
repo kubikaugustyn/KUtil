@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 from base64 import b64encode
 from hashlib import sha1
-from typing import Any
+from typing import Any, Optional
 
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError
 from kutil.buffer.ByteBuffer import ByteBuffer
@@ -56,7 +56,7 @@ class WSConnection(ProtocolConnection):
         self.dataBuffer = ByteBuffer()
 
     def onDataInner(self, data: WSMessage, stoppedUnpacking: bool = False,
-                    layer: AbstractProtocol | None = None) -> bool | WSData:
+                    layer: Optional[AbstractProtocol] = None) -> bool | WSData:
         if data.opcode in (WSOpcode.BINARY_FRAME, WSOpcode.TEXT_FRAME):
             self.dataBuffer.write(data.payload.superSecretRawAccess)
             if data.isFin:

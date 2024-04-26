@@ -4,6 +4,7 @@ __author__ = "kubik.augustyn@post.cz"
 import os
 import sys
 from enum import IntEnum, unique
+from typing import Optional
 
 from kutil.protocol.TLS.extensions import Extension, readExtension, readExtensions, writeExtensions, \
     NamedGroup
@@ -42,7 +43,7 @@ class Message(Serializable):
     messageType: MessageType
     payload: bytes
 
-    def __init__(self, messageType: MessageType | None = None, payload: bytes | None = None):
+    def __init__(self, messageType: Optional[MessageType] = None, payload: Optional[bytes] = None):
         self.messageType = messageType
         self.payload = payload
 
@@ -81,10 +82,10 @@ class ClientHelloMessage(Message):
     compressionMethods: bytes
     extensions: list[Extension]
 
-    def __init__(self, protocolVersion: TLSVersion, random: bytes | None = None,
-                 sessionID: bytes | None = None, cipherSuites: list[CipherSuite] | None = None,
-                 compressionMethods: bytes | None = None,
-                 extensions: list[Extension] | None = None):
+    def __init__(self, protocolVersion: TLSVersion, random: Optional[bytes] = None,
+                 sessionID: Optional[bytes] = None, cipherSuites: Optional[list[CipherSuite]] = None,
+                 compressionMethods: Optional[bytes] = None,
+                 extensions: Optional[list[Extension]] = None):
         self.protocolVersion = protocolVersion
         self.random = random if random is not None else os.urandom(32)
         self.sessionID = sessionID if sessionID is not None else b''
@@ -126,9 +127,9 @@ class ServerHelloMessage(Message):
     compressionMethod: int
     extensions: list[Extension]
 
-    def __init__(self, protocolVersion: TLSVersion | None = None, random: bytes | None = None,
-                 sessionIDEcho: bytes | None = None, cipherSuite: CipherSuite | None = None,
-                 compressionMethod: int | None = None, extensions: list[Extension] | None = None):
+    def __init__(self, protocolVersion: Optional[TLSVersion] = None, random: Optional[bytes] = None,
+                 sessionIDEcho: Optional[bytes] = None, cipherSuite: Optional[CipherSuite] = None,
+                 compressionMethod: Optional[int] = None, extensions: Optional[list[Extension]] = None):
         self.protocolVersion = protocolVersion
         self.random = random if random is not None else os.urandom(32)
         self.sessionIDEcho = sessionIDEcho if sessionIDEcho is not None else b''
@@ -172,8 +173,8 @@ class CertificateMessage(Message):
     certRequestCtx: bytes  # certificate_request_context
     certificates: list[Certificate | AnyPublicKey]
 
-    def __init__(self, certRequestCtx: bytes | None = None,
-                 certificates: list[Certificate | AnyPublicKey] | None = None):
+    def __init__(self, certRequestCtx: Optional[bytes] = None,
+                 certificates: Optional[list[Certificate | AnyPublicKey]] = None):
         self.certRequestCtx = certRequestCtx or b''
         self.certificates = certificates or []
         super().__init__(MessageType.Certificate, b'')
@@ -213,7 +214,7 @@ class FinishedMessage(Message):
     macSize: int
     verifyData: bytes
 
-    def __init__(self, macSize: int, verifyData: bytes | None = None):
+    def __init__(self, macSize: int, verifyData: Optional[bytes] = None):
         self.macSize = macSize
         self.verifyData = verifyData if verifyData else b''
         super().__init__(MessageType.Finished, b'')
@@ -239,9 +240,9 @@ class ClientKeyExchangeMessage(Message):
     ecdh_Yc: bytes
     encryptedPreMasterSecret: bytes
 
-    def __init__(self, cipherSuite: CipherSuite, version: TLSVersion, srp_A: int | None = None,
-                 dh_Yc: int | None = None, ecdh_Yc: bytes | None = None,
-                 encryptedPreMasterSecret: bytes | None = None):
+    def __init__(self, cipherSuite: CipherSuite, version: TLSVersion, srp_A: Optional[int] = None,
+                 dh_Yc: Optional[int] = None, ecdh_Yc: Optional[bytes] = None,
+                 encryptedPreMasterSecret: Optional[bytes] = None):
         self.cipherSuite = cipherSuite
         self.version = version
 

@@ -2,7 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from socket import socket, AF_INET, SOCK_STREAM
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 
 from kutil.typing_help import neverCall
 
@@ -33,7 +33,7 @@ class ProtocolServer:
 
         self.sock.bind(address)
 
-    def listen(self, maxAmount: int | None = None):
+    def listen(self, maxAmount: Optional[int] = None):
         if maxAmount is None:
             self.sock.listen()
         else:
@@ -55,7 +55,7 @@ class ProtocolServer:
             self.connections.append(connection)
             connection.startRecv()
 
-    def __onConnectionClose(self, connection: ProtocolConnection, cause: Exception | None) -> None:
+    def __onConnectionClose(self, connection: ProtocolConnection, cause: Optional[Exception]) -> None:
         if connection not in self.connections:
             return
         self.connections.remove(connection)

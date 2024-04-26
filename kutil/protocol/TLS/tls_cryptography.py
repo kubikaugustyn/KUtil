@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 import math
 import re
-from typing import Final
+from typing import Final, Optional
 
 from cryptography.x509 import load_der_x509_certificate, Certificate
 from cryptography.hazmat.primitives.asymmetric import dh, ec, x25519, x448
@@ -258,7 +258,7 @@ type AnyPrivateKey = dh.DHPrivateKey | ec.EllipticCurvePrivateKey | x25519.X2551
 type AnyPublicKey = dh.DHPublicKey | ec.EllipticCurvePublicKey | x25519.X25519PublicKey | x448.X448PublicKey
 
 
-def generateKeypair(group: NamedGroup) -> tuple[AnyPrivateKey, dh.DHPublicKey | None]:
+def generateKeypair(group: NamedGroup) -> tuple[AnyPrivateKey, Optional[dh.DHPublicKey]]:
     if group in DHE_GROUPS:
         return generateDHEKeypair(group)
     elif group in ECDHE_GROUPS:

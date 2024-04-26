@@ -2,7 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from enum import Enum, unique
-from typing import Callable
+from typing import Callable, Optional
 
 from kutil.language.Options import UnifiedOptions
 from kutil.language.languages.javascript.error_handler import ErrorHandler
@@ -18,7 +18,7 @@ class JSOptions(UnifiedOptions):
 
     range: bool
     loc: bool
-    source: str | None
+    source: Optional[str]
     tokens: bool
     comment: bool
     tolerant: bool

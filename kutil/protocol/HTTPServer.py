@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from typing import Callable, Any, Self
+from typing import Callable, Any, Self, Optional
 
 from kutil.typing_help import neverCall
 
@@ -54,8 +54,8 @@ class HTTPServerConnection(ProtocolConnection):
     onData: Callable[[Self, HTTPRequest | WSMessage], None]
     didUpgradeToWS: bool
     acceptWSChecker: AcceptWSChecker
-    onWebsocketEstablishment: Callable[[Any], None] | None
-    wsConn: WSConnection | None
+    onWebsocketEstablishment: Optional[Callable[[Any], None]]
+    wsConn: Optional[WSConnection]
 
     def init(self):
         self.didUpgradeToWS = False
@@ -73,7 +73,7 @@ class HTTPServerConnection(ProtocolConnection):
         self.close(WebSocketNotAllowed())
 
     def onDataInner(self, data: HTTPRequest | WSMessage, stoppedUnpacking: bool = False,
-                    layer: AbstractProtocol | None = None) -> bool:
+                    layer: Optional[AbstractProtocol] = None) -> bool:
         assert isinstance(data, HTTPRequest) if not self.didUpgradeToWS else isinstance(data,
                                                                                         WSMessage)
         if not self.didUpgradeToWS:

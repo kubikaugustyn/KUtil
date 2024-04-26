@@ -98,7 +98,7 @@ class BytecodeFile(ABC):
         pass
 
     @abstractmethod
-    def read(self, buffer: ByteBuffer, compareCrc32Data: bytes | None) -> None:
+    def read(self, buffer: ByteBuffer, compareCrc32Data: Optional[bytes]) -> None:
         """This is the method that should read the bytecode etc. from an ArrayBuffer,
         storing the data in self.
 

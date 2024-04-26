@@ -2,14 +2,14 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from threading import Thread
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 from socket import socket, AF_INET, SOCK_STREAM
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError, StopUnpacking
 from kutil.buffer.ByteBuffer import ByteBuffer
 
 type OnDataListener = Callable[[ProtocolConnection, Any], None]
 type OnEstablishedListener = Callable[[ProtocolEstablishedConnection], None]
-type OnCloseListener = Callable[[ProtocolConnection, Exception | None], None]
+type OnCloseListener = Callable[[ProtocolConnection, Optional[Exception]], None]
 
 
 class ConnectionClosed(Exception):
@@ -26,8 +26,8 @@ class ProtocolConnection:
     sock: socket
 
     def __init__(self, address: tuple[str, int], layers: list[AbstractProtocol],
-                 onData: OnDataListener, sock: socket | None = None,
-                 onClose: list[OnCloseListener] | None = None):
+                 onData: OnDataListener, sock: Optional[socket] = None,
+                 onClose: Optional[list[OnCloseListener]] = None):
         self.layers = layers
         self.onData = onData
         self.onCloseListeners = onClose if onClose is not None else []
@@ -45,7 +45,7 @@ class ProtocolConnection:
         pass  # Subclasses will overwrite this
 
     def onDataInner(self, data: Any, stoppedUnpacking: bool = False,
-                    layer: AbstractProtocol | None = None) -> bool | Any:
+                    layer: Optional[AbstractProtocol] = None) -> bool | Any:
         return True  # Subclasses will overwrite this, return whether you want to call the onData handler
 
     def startRecv(self):
@@ -67,7 +67,7 @@ class ProtocolConnection:
         """Removes a protocol and it's contained protocols"""
         self.layers = self.layers[:self.layers.index(protocol)]
 
-    def close(self, cause: Exception | None = None):
+    def close(self, cause: Optional[Exception] = None):
         self.closed = True
         # try:
         self.sock.close()
@@ -179,7 +179,7 @@ class ProtocolEstablishedConnection(ProtocolConnection):
 
     def __init__(self, address: tuple[str, int], layers: list[AbstractProtocol],
                  onData: OnDataListener, onEstablished: OnEstablishedListener,
-                 sock: socket | None = None, onClose: list[OnCloseListener] | None = None):
+                 sock: Optional[socket] = None, onClose: Optional[list[OnCloseListener]] = None):
         self._established = False
         self.onEstablished = onEstablished
         super().__init__(address, layers, onData, sock, onClose)

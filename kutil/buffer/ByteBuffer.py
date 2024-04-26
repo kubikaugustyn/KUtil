@@ -1,8 +1,20 @@
 #  -*- coding: utf-8 -*-
+"""
+>>> buff = ByteBuffer()
+>>> _ = buff.writeByte(0x45).write(b'ab').write([0x45]) # I have to set it to _ to pass the test
+>>> from kutil.buffer.DataBuffer import DataBuffer
+>>> dBuff = DataBuffer(buff)
+>>> hex(dBuff.readUInt32())
+'0x45616245' # 0x45, 'a', 'b', 0x45 in hex
+>>> id(buff) == id(dBuff.buff)
+True
+>>> id(dBuff) == id(DataBuffer(buff)) # Check if the cache works
+True
+"""
 __author__ = "kubik.augustyn@post.cz"
 
 import copy
-from typing import Iterable, Self
+from typing import Iterable, Self, Optional
 
 
 class OutOfBoundsReadError(BaseException):
@@ -16,11 +28,15 @@ class OutOfBoundsUndoError(BaseException):
 class ByteBuffer(Iterable[int]):
     data: bytearray
     pointer: int
+    _dataBuffer: Optional[object]  # DataBuffer
 
     def __init__(self, dataOrLength: Iterable[int] | int = 0):
-        self.data = bytearray(dataOrLength) if isinstance(dataOrLength, int) else bytearray(
-            dataOrLength)
+        if isinstance(dataOrLength, int):
+            self.data = bytearray(dataOrLength)
+        else:
+            self.data = bytearray(dataOrLength)
         self.pointer = 0
+        self._dataBuffer = None
 
     def readByte(self) -> int:
         self.assertHas(1)
@@ -90,7 +106,7 @@ class ByteBuffer(Iterable[int]):
     def export(self) -> bytes:
         return bytes(self.data)
 
-    def reset(self, data: Iterable[int] | None = None) -> Self:
+    def reset(self, data: Optional[Iterable[int]] = None) -> Self:
         self.resetPointer()
         self.data.clear()
         if data is not None:
@@ -141,3 +157,19 @@ class ByteBuffer(Iterable[int]):
         """Iterates over all bytes of the buffer, ignoring and not mutating the pointer."""
         for byte in self.data:
             yield byte
+
+    def getDataBuffer(self):
+        """
+        Returns the cached data buffer if it exists, otherwise returns None.
+        :return: The DataBuffer or None
+        """
+        return self._dataBuffer
+
+    def setDataBuffer(self, buffer):
+        """
+        Caches the data buffer.
+        :param buffer: The data buffer to set
+        """
+        from kutil.buffer.DataBuffer import DataBuffer  # Hope it's cached
+        assert isinstance(buffer, DataBuffer)
+        self._dataBuffer = buffer

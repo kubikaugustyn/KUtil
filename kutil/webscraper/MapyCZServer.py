@@ -339,7 +339,7 @@ class MapyCZServer(WebScraperServer):
     def __scrape(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet, lang: str,
                  canScrapeAround: bool = True) -> bytes:
         # print(f'X: {x}, Y: {y}, Zoom: {zoom}, tile size: {tileSize}, kind: {mapSet.name}, language: {lang}')
-        cachedValue: bytes | None = self.__obtainFromCache(x, y, zoom, tileSize, mapSet, lang)
+        cachedValue: Optional[bytes] = self.__obtainFromCache(x, y, zoom, tileSize, mapSet, lang)
         if cachedValue is not None:
             return cachedValue
         # https://api.mapy.cz/v1/maptiles/outdoor/tiles.json?apikey=virtual-
@@ -454,7 +454,7 @@ class MapyCZServer(WebScraperServer):
             f.write(data)
 
     def __obtainFromCache(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet,
-                          lang: str) -> bytes | None:
+                          lang: str) -> Optional[bytes]:
         if self.__cachePath is None:
             return None
         path = self.__getCacheFilePath(x, y, zoom, tileSize, mapSet, lang)

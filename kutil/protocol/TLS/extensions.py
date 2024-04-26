@@ -2,7 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from enum import IntEnum, unique
-from typing import Final
+from typing import Final, Optional
 
 from kutil.buffer.DataBuffer import DataBuffer
 from kutil.buffer.ByteBuffer import ByteBuffer
@@ -41,7 +41,7 @@ class Extension(Serializable):
     extensionType: ExtensionType
     payload: bytes
 
-    def __init__(self, extensionType: ExtensionType | None, payload: bytes | None = None):
+    def __init__(self, extensionType: Optional[ExtensionType], payload: Optional[bytes] = None):
         self.extensionType = extensionType
         self.payload = payload if payload is not None else b''
 
@@ -94,7 +94,7 @@ ECDHE_GROUPS: Final[set[NamedGroup]] = {NamedGroup.secp256r1, NamedGroup.secp384
 class SupportedGroupsExtension(Extension):
     namedGroups: list[NamedGroup]
 
-    def __init__(self, namedGroups: list[NamedGroup] | None = None):
+    def __init__(self, namedGroups: Optional[list[NamedGroup]] = None):
         self.namedGroups = namedGroups if namedGroups is not None else []
         super().__init__(ExtensionType.SUPPORTED_GROUPS)
 
@@ -136,7 +136,7 @@ class KeyShareEntry(Serializable):
 class KeyShareExtension(Extension):
     clientShares: list[KeyShareEntry]
 
-    def __init__(self, clientShares: list[KeyShareEntry] | None = None):
+    def __init__(self, clientShares: Optional[list[KeyShareEntry]] = None):
         self.clientShares = clientShares if clientShares is not None else []
         super().__init__(ExtensionType.KEY_SHARE)
 

@@ -1,6 +1,8 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+from typing import Optional
+
 from kutil.protocol.TLS import messages
 
 from kutil.protocol.TLS.ConnectionState import ConnectionState, ConnectionStateType
@@ -16,7 +18,7 @@ class HandshakeRecord(RawTLSRecord):
     messages: list[Message]
 
     def __init__(self, connectionState: ConnectionState,
-                 messages: list[Message] | None = None) -> None:
+                 messages: Optional[list[Message]] = None) -> None:
         self.messages = messages if messages is not None else []
         super().__init__(TLSRecordType.Handshake, connectionState)
 
@@ -148,6 +150,6 @@ class ChangeCipherSpecRecord(RawTLSRecord):
 
 # https://en.wikipedia.org/wiki/Transport_Layer_Security#Application_protocol
 class ApplicationRecord(RawTLSRecord):
-    def __init__(self, connectionState: ConnectionState, payload: bytes | None = None) -> None:
+    def __init__(self, connectionState: ConnectionState, payload: Optional[bytes] = None) -> None:
         assert connectionState.state == ConnectionStateType.APPLICATION_DATA
         super().__init__(TLSRecordType.Application, connectionState, payload)

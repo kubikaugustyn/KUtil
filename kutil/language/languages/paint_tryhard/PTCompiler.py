@@ -135,7 +135,7 @@ class PTBytecodeFile(BytecodeFile):
             info.read(contractBuff)
             yield info, bytecode
 
-    def read(self, buffer: ByteBuffer, compareCrc32Data: bytes | None = None) -> None:
+    def read(self, buffer: ByteBuffer, compareCrc32Data: Optional[bytes] = None) -> None:
         dBuff: DataBuffer = DataBuffer(buffer)
 
         self.crc32 = dBuff.readUInt32()

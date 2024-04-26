@@ -1,9 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from typing import Iterable, TypeVar, Iterator
-
-TBidirectionalByteArray = TypeVar("TBidirectionalByteArray", bound="BidirectionalByteArray")
+from typing import Iterable, Iterator, Self, Optional
 
 
 class BidirectionalByteArray:
@@ -27,7 +25,7 @@ class BidirectionalByteArray:
     def __len__(self) -> int:
         return len(self.data) + len(self.dataNegative)
 
-    def writeByte(self, byte: int, pos: int) -> TBidirectionalByteArray:
+    def writeByte(self, byte: int, pos: int) -> Self:
         self.extendTo(pos)
         if pos >= 0:
             self.data[pos] = byte
@@ -41,7 +39,7 @@ class BidirectionalByteArray:
     def getOffset(self) -> int:
         return -len(self.dataNegative)
 
-    def reset(self, data: Iterable[int] | None = None, offset: int = 0) -> TBidirectionalByteArray:
+    def reset(self, data: Optional[Iterable[int]] = None, offset: int = 0) -> Self:
         self.data.clear()
         assert data is None
         # if data is not None:

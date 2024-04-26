@@ -2,6 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from threading import Semaphore
+from typing import Optional
 
 
 class ThreadWaiter:
@@ -14,7 +15,7 @@ class ThreadWaiter:
         self.waitingThreadCount = 0
         self.semaphore = Semaphore(0)
 
-    def wait(self, maxTime: float | None = None) -> bool:
+    def wait(self, maxTime: Optional[float] = None) -> bool:
         """
         Blocks the caller thread until the release() method is called. If it was called before the wait call,
         the thread execution will immediately continue.

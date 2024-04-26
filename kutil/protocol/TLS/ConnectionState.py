@@ -7,7 +7,7 @@ import urllib3.util
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dh
 from enum import Enum, unique, IntEnum, auto
-from typing import Self
+from typing import Self, Optional
 
 from kutil.protocol.TLS.extensions import NamedGroup, KeyShareEntry
 from kutil.protocol.TLS.CipherSuite import CipherSuite
@@ -73,12 +73,12 @@ class ConnectionStateType(Enum):
 
 class ConnectionState:
     state: ConnectionStateType
-    mac: MACType | None
-    keyExchangeAlgorithm: KeyExchangeAlgorithm | None
-    rootCertificate: Certificate | None
+    mac: Optional[MACType]
+    keyExchangeAlgorithm: Optional[KeyExchangeAlgorithm]
+    rootCertificate: Optional[Certificate]
     certificates: list[Certificate]
-    verifiedCertificateChain: list[Certificate] | None
-    _version: TLSVersion | None
+    verifiedCertificateChain: Optional[list[Certificate]]
+    _version: Optional[TLSVersion]
     supportedCipherSuites: list[CipherSuite] = list(CipherSuite)  # Well, lets lie to the server...
     supportedGroups: list[NamedGroup] = [
         # TODO Order and implement them all properly
@@ -97,10 +97,10 @@ class ConnectionState:
     ]
     clientSharedKeys: list[KeyShareEntry]
     _privateKeys: dict[NamedGroup, dh.DHPrivateKey]
-    pendingCipher: CipherSuite | None
-    _selectedCipher: CipherSuite | None
+    pendingCipher: Optional[CipherSuite]
+    _selectedCipher: Optional[CipherSuite]
     sessionID: bytes
-    serverDomainName: str | None
+    serverDomainName: Optional[str]
 
     def __init__(self):
         self.state = ConnectionStateType.INIT

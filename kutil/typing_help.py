@@ -11,6 +11,7 @@ from typing import *
 # Exported things
 from frozenlist import FrozenList
 from itertools import chain
+from copy import deepcopy
 
 
 # Class decorators

@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 import json
 from abc import abstractmethod, ABC
-from typing import Literal as TypingLiteral, Any, Self
+from typing import Literal as TypingLiteral, Any, Self, Optional
 
 from kutil import NL
 from .character import TABULATOR
@@ -769,10 +769,10 @@ class ObjectPattern(ObjectExpression):
 class Property(StaticNode):
     key: int
     computed: bool
-    value: int | None
+    value: Optional[int]
     kind: TypingLiteral["init", "get", "set"]
-    method: int | None
-    shorthand: int | None
+    method: Optional[int]
+    shorthand: Optional[int]
 
     def __init__(self, kind, key, computed, value, method, shorthand):
         super().__init__(JSNode.Property, (kind, key, computed, value, method, shorthand))
@@ -1118,7 +1118,7 @@ class VariableDeclaration(Node):
 
 class VariableDeclarator(Node):
     id: int
-    init: int | None
+    init: Optional[int]
 
     def __init__(self, id, init):
         super().__init__(JSNode.VariableDeclarator, (id, init))

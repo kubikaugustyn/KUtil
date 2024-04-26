@@ -2,7 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from enum import IntEnum, unique, Enum
-from typing import Final, Self
+from typing import Final, Self, Optional
 
 from kutil.protocol.AbstractProtocol import NeedMoreDataError
 
@@ -33,13 +33,13 @@ class RawTLSRecordNeedMoreDataError(NeedMoreDataError):
 class RawTLSRecord(Serializable):
     connectionState: ConnectionState
     contentType: TLSRecordType
-    payload: bytes | None
-    mac: bytes | None
-    padding: bytes | None
+    payload: Optional[bytes]
+    mac: Optional[bytes]
+    padding: Optional[bytes]
 
     def __init__(self, contentType: TLSRecordType, connectionState: ConnectionState,
-                 payload: bytes | None = None, mac: bytes | None = None,
-                 padding: bytes | None = None) -> None:
+                 payload: Optional[bytes] = None, mac: Optional[bytes] = None,
+                 padding: Optional[bytes] = None) -> None:
         self.connectionState = connectionState
         self.contentType = contentType
         self.payload = payload

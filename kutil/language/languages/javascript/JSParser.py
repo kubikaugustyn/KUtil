@@ -2,7 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from enum import Enum, unique
-from typing import Callable, Any, overload
+from typing import Callable, Any, overload, Optional
 
 from kutil.language.languages.javascript.JSLexer import JSLexer, RawToken, SourceLocation, \
     Position, RegExp
@@ -83,7 +83,7 @@ class TokenEntry(ASTNode):
         self.loc = loc
 
 
-type DelegateType = Callable[[nodes.Node, SourceLocation], nodes.Node | None]
+type DelegateType = Callable[[nodes.Node, SourceLocation], Optional[nodes.Node]]
 type GrammarParseFunctionReturn = Any
 type GrammarParseFunction = Callable[[], GrammarParseFunctionReturn]
 
@@ -212,7 +212,7 @@ class JSParser(OneUseParser):
 
     # Throw an exception because of the token.
 
-    def unexpectedTokenError(self, token: RawToken, message: str | None = None):
+    def unexpectedTokenError(self, token: RawToken, message: Optional[str] = None):
         msg = message or Messages.UnexpectedToken
         if token:
             if not message:
@@ -253,7 +253,7 @@ class JSParser(OneUseParser):
             column = self.lastMarker.column + 1
             return self.errorHandler.createError(index, line, column, msg)
 
-    def throwUnexpectedToken(self, token: RawToken | None = None, message: str | None = None):
+    def throwUnexpectedToken(self, token: Optional[RawToken] = None, message: Optional[str] = None):
         """
         Always throws an exception.
         :param token: The token that caused the error

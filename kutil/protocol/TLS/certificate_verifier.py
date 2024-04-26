@@ -5,6 +5,8 @@ create an issue on GitHub here: https://github.com/kubikaugustyn/KUtil/issues/ne
 """
 __author__ = "kubik.augustyn@post.cz"
 
+from typing import Optional
+
 from cryptography.x509 import DNSName, load_pem_x509_certificates
 from cryptography.x509.verification import PolicyBuilder, Store, VerificationError
 import certifi
@@ -12,7 +14,7 @@ from datetime import datetime
 
 from kutil.protocol.TLS.ConnectionState import ConnectionState
 
-_STORE: Store | None = None
+_STORE: Optional[Store] = None
 
 
 def getStore() -> Store:
@@ -27,7 +29,7 @@ def getStore() -> Store:
 # https://datatracker.ietf.org/doc/html/rfc5280
 # https://cryptography.io/en/latest/x509/verification/
 # This is the crucial point of the connection - is the certificate valid?
-def verifyPeerCertificates(state: ConnectionState) -> tuple[int, Exception | None]:
+def verifyPeerCertificates(state: ConnectionState) -> tuple[int, Optional[Exception]]:
     """
     Verifies the provided certificate's validity.
     :param state: Connection state containing certificates to check
