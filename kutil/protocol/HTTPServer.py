@@ -1,22 +1,36 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+from enum import Enum, unique, auto
 from typing import Callable, Any, Self, Optional
 
-from kutil.typing_help import neverCall
+from kutil.typing_help import neverCall, returnFalse
 
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError
 from kutil.buffer.ByteBuffer import ByteBuffer
 from kutil.protocol.ProtocolConnection import ProtocolConnection
 from kutil.protocol.ProtocolServer import ProtocolServer
 from kutil.protocol.TCPConnection import TCPProtocol
-from kutil.protocol.WS.WSMessage import WSMessage
 from kutil.protocol.HTTP.HTTPRequest import HTTPRequest
 from kutil.protocol.HTTP.HTTPResponse import HTTPResponse
 from kutil.protocol.HTTP.HTTPHeaders import HTTPHeaders
+from kutil.protocol.WS.WSMessage import WSMessage
 from kutil.protocol.WSConnection import WSProtocol, WSConnection
+from kutil.protocol.SSE.SSEMessage import SSEMessage
+from kutil.protocol.SSEConnection import SSEProtocol, SSEConnection
 
 type AcceptWSChecker = Callable[[HTTPServerConnection, HTTPRequest], bool]
+type AcceptSSEChecker = Callable[[HTTPServerConnection, HTTPRequest], bool]
+
+
+@unique
+class HTTPConnectionState(Enum):
+    """
+    A class indicating the current connection state - was it upgraded? Is it still raw HTTP?
+    """
+    HTTP = auto()
+    WS = auto()
+    SSE = auto()
 
 
 class HTTPServerProtocol(AbstractProtocol):
@@ -49,19 +63,29 @@ class WebSocketNotAllowed(Exception):
     pass
 
 
+class ServerSentEventsNotAllowed(Exception):
+    pass
+
+
 class HTTPServerConnection(ProtocolConnection):
     # Note that editing the __init__ method might break the whole thing
     onData: Callable[[Self, HTTPRequest | WSMessage], None]
-    didUpgradeToWS: bool
     acceptWSChecker: AcceptWSChecker
+    acceptSSEChecker: AcceptSSEChecker
+    _state: HTTPConnectionState
     onWebsocketEstablishment: Optional[Callable[[Any], None]]
+    onSSEEstablishment: Optional[Callable[[Any], None]]
     wsConn: Optional[WSConnection]
+    sseConn: Optional[SSEConnection]
 
     def init(self):
-        self.didUpgradeToWS = False
-        self.acceptWSChecker = lambda x, y: False
+        self._state = HTTPConnectionState.HTTP
+        self.acceptWSChecker = returnFalse
+        self.acceptSSEChecker = returnFalse
         self.onWebsocketEstablishment = None  # Change if wanted, called with self as the argument
+        self.onSSEEstablishment = None  # Change if wanted, called with self as the argument
         self.wsConn = None
+        self.sseConn = None
 
     def _denyWebsocketConnection(self, notAllowedOrInvalid: bool):
         if notAllowedOrInvalid:
@@ -72,13 +96,21 @@ class HTTPServerConnection(ProtocolConnection):
         self.sendData(resp)
         self.close(WebSocketNotAllowed())
 
-    def onDataInner(self, data: HTTPRequest | WSMessage, stoppedUnpacking: bool = False,
+    def onDataInner(self, data: HTTPRequest | WSMessage | SSEMessage,
+                    stoppedUnpacking: bool = False,
                     layer: Optional[AbstractProtocol] = None) -> bool:
-        assert isinstance(data, HTTPRequest) if not self.didUpgradeToWS else isinstance(data,
-                                                                                        WSMessage)
-        if not self.didUpgradeToWS:
-            if data.headers.get("Upgrade") == "websocket" and data.headers.get(
-                    "Connection") == "Upgrade":
+        if self.didNotUpgrade:
+            assert isinstance(data, HTTPRequest)
+        elif self.didUpgradeToWS:
+            assert isinstance(data, WSMessage)
+        elif self.didUpgradeToSSE:
+            assert isinstance(data, SSEMessage)
+        else:
+            raise ValueError
+
+        if self.didNotUpgrade and not self.didUpgradeToWS:
+            if (data.headers.get("Upgrade") == "websocket" and
+                    data.headers.get("Connection") == "Upgrade"):
                 if not self.acceptWSChecker(self, data):
                     # Cancel the connection if we aren't allowed to establish a WS connection
                     self._denyWebsocketConnection(True)
@@ -100,37 +132,89 @@ class HTTPServerConnection(ProtocolConnection):
                 self.sendData(resp)
                 self.removeProtocol(self.layers[-1])  # Remove the HTTP protocol
                 self.addProtocol(WSProtocol(self))
-                self.didUpgradeToWS = True
+                self.wsConn = WSConnection(("", 0), [], neverCall, self.sock)
+                self._state = HTTPConnectionState.WS
                 if self.onWebsocketEstablishment:
                     self.onWebsocketEstablishment(self)
-                self.wsConn = WSConnection(("", 0), [], neverCall, self.sock)
+                return False  # Don't call the onData with the WS request
+        if self.didNotUpgrade and not self.didUpgradeToSSE:
+            if (data.headers.get("Accept") == "text/event-stream" and
+                    data.headers.get("Connection") == "keep-alive"):
+                headers: HTTPHeaders = HTTPHeaders()
+                headers["Content-Type"] = "text/event-stream"
+                headers["X-Omit-Content-Length"] = "1"
+                headers["Connection"] = "keep-alive"
+                resp: HTTPResponse = HTTPResponse(200, "OK", headers, b'')
+                self.sendData(resp)
+                self.removeProtocol(self.layers[-1])  # Remove the HTTP protocol
+                self.addProtocol(SSEProtocol(self))
+                self.sseConn = SSEConnection(("", 0), [], neverCall, self.sock)
+                self._state = HTTPConnectionState.SSE
+                if self.onSSEEstablishment:
+                    self.onSSEEstablishment(self)
                 return False  # Don't call the onData with the WS request
         return True
 
     def acceptWebsocket(self, acceptWSChecker: AcceptWSChecker):
         self.acceptWSChecker = acceptWSChecker
 
+    def acceptServerSentEvents(self, acceptSSEChecker: AcceptSSEChecker):
+        self.acceptSSEChecker = acceptSSEChecker
+
+    @property
+    def didUpgradeToWS(self) -> bool:
+        return self._state is HTTPConnectionState.WS
+
+    @property
+    def didUpgradeToSSE(self) -> bool:
+        return self._state is HTTPConnectionState.SSE
+
+    @property
+    def didNotUpgrade(self) -> bool:
+        return self._state is HTTPConnectionState.HTTP
+
     @property
     def ownConnection(self):
         if self.didUpgradeToWS:
             return self.wsConn
-        return self
+        elif self.didUpgradeToSSE:
+            return self.sseConn
+        else:
+            assert self.didNotUpgrade
+            return self
+
+
+type onConnectionListener = Callable[
+    [HTTPServerConnection],  # Argument - the new connection
+    Callable[  # Return - onData listener
+        [HTTPServerConnection, HTTPRequest | WSMessage | SSEMessage],
+        None
+    ]
+]
 
 
 class HTTPServer(ProtocolServer):
     connectionType: type[ProtocolConnection] = HTTPServerConnection
     acceptWSChecker: AcceptWSChecker
+    acceptSSEChecker: AcceptSSEChecker
 
     def __init__(self, address: tuple[str, int],
-                 onConnection: Callable[[ProtocolConnection], Callable[[ProtocolConnection,
-                                                                        HTTPRequest], None]]):
+                 onConnection: onConnectionListener):
         super().__init__(address, lambda conn: [TCPProtocol(conn), HTTPServerProtocol(conn)],
                          onConnection)
-        self.acceptWSChecker = lambda x, y: False
+        self.acceptWSChecker = returnFalse
+        self.acceptSSEChecker = returnFalse
 
     def acceptWebsocket(self, acceptWSChecker: AcceptWSChecker):
         self.acceptWSChecker = acceptWSChecker
 
+    def acceptServerSentEvents(self, acceptSSEChecker: AcceptSSEChecker):
+        self.acceptSSEChecker = acceptSSEChecker
+
     def onConnectionInner(self, conn: HTTPServerConnection) -> bool:
         conn.acceptWebsocket(self.acceptWSChecker)
+        conn.acceptServerSentEvents(self.acceptSSEChecker)
         return True
+
+
+__all__ = ["HTTPServer", "HTTPServerConnection", "HTTPServerProtocol"]

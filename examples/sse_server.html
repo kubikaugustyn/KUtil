@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SSE server test</title>
+</head>
+<body>
+<a href="/">Home</a>
+<h1 id="time"></h1>
+<h1 id="state"></h1>
+<script>
+    var state = val => {
+        var elem = document.getElementById("state")
+        var lines = elem.innerHTML ? elem.innerHTML.split("<br>") : []
+        lines.push(val)
+        if (lines.length >= 2) elem.style.webkitMaskImage = "-webkit-gradient(linear, left bottom, left top, from(rgba(0,0,0,1)), to(rgba(0,0,0,0)))"
+        if (lines.length > 10) lines = lines.slice(lines.length - 10)
+        elem.innerHTML = lines.join("<br>")
+    }
+
+    var f = x => x.toString().padStart(2, "0")
+    var f2 = x => x.toString().padStart(3, "0")
+
+    var time = val => {
+        var elem = document.getElementById("time")
+        var timeSeconds = parseFloat(val)
+        var date = new Date(Math.floor(timeSeconds * 1000))
+        elem.innerHTML = "Server time:<br>" + date.toDateString() + "<br>" + `${f(date.getHours())}:${f(date.getMinutes())}:${f(date.getSeconds())}.${f2(date.getMilliseconds())}`
+    }
+
+    // https://developer.mozilla.org/en-US/docs/Web/API/EventSource
+    const sse = new EventSource("/sse");
+
+    /*
+     * This will listen only for events
+     * similar to the following:
+     *
+     * event: update-time
+     * data: useful data
+     * id: someid
+     */
+    sse.addEventListener("update-time", (e) => {
+        // console.log(e.data)
+        state("Update: ".concat(e.data))
+        time(e.data)
+    })
+
+    /*
+     * The event "message" is a special case, as it
+     * will capture events without an event field
+     * as well as events that have the specific type
+     * `event: message` It will not trigger on any
+     * other event type.
+     */
+    sse.addEventListener("message", (e) => {
+        console.log(e.data)
+        state("Message: ".concat(e.data))
+    })
+
+    sse.onopen = () => state("Connected")
+    sse.onerror = err => {
+        console.log(err)
+        state("An error occurred")
+    }
+</script>
+</body>
+</html>

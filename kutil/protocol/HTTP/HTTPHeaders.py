@@ -34,6 +34,10 @@ class HTTPHeaders(dict[str, str]):
         key = CaseInsensitiveKey(key)
         return super().__getitem__(key)
 
+    def __delitem__(self, key: str) -> None:
+        key = CaseInsensitiveKey(key)
+        return super().__delitem__(key)
+
     def get(self, key: str, default=None):
         key = CaseInsensitiveKey(key)
         if key not in self:

@@ -28,7 +28,12 @@ class HTTPThing(Serializable):
 
     def writeRest(self, buff: ByteBuffer):
         # Make sure the content-length is present and correct
-        self.headers["Content-Length"] = str(len(self.body))
+        if self.headers.get("X-Omit-Content-Length", "0") != "1":
+            self.headers["Content-Length"] = str(len(self.body))
+        else:
+            # The magic header is the only way to implement SSE
+            del self.headers["X-Omit-Content-Length"]
+
         for name, value in self.headers.items():
             buff.write(self.enc(str(name))).write(self.HEADER_SEP).write(self.enc(value)).write(
                 self.CRLF)

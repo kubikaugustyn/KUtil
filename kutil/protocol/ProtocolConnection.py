@@ -169,7 +169,7 @@ class ProtocolConnection:
     @property
     def ownConnection(self):
         """Returns self (usually). Used to split the work across different connection protocol
-         classes when the protocols change (e.g. HTTP --> WebSocket)"""
+         classes when the protocols change (e.g., HTTP --> WebSocket)"""
         return self  # Maybe the connection changed (protocol switch)
 
 

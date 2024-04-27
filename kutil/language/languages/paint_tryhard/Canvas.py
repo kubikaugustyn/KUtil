@@ -34,7 +34,7 @@ class Canvas(Thread):
 
     def exit(self):
         self.stop.set()
-        self.waiter.release()
+        self.waiter.reset()
 
     @property
     def width(self):

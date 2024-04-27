@@ -1,4 +1,8 @@
 #  -*- coding: utf-8 -*-
+"""
+>>> WSProtocol.createAcceptHeader("x3JJHMbDL1EzLkh9GBhXDw==")
+'HSmrc0sMlYUkAGmm5OPpG2HaGWk='
+"""
 __author__ = "kubik.augustyn@post.cz"
 
 from base64 import b64encode
@@ -71,7 +75,3 @@ class WSConnection(ProtocolConnection):
         self.close(ValueError("Unknown frame:" + data.opcode.name))
         return False
 
-
-if __name__ == '__main__':
-    assert WSProtocol.createAcceptHeader(
-        "x3JJHMbDL1EzLkh9GBhXDw==") == "HSmrc0sMlYUkAGmm5OPpG2HaGWk="

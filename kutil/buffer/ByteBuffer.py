@@ -4,8 +4,8 @@
 >>> _ = buff.writeByte(0x45).write(b'ab').write([0x45]) # I have to set it to _ to pass the test
 >>> from kutil.buffer.DataBuffer import DataBuffer
 >>> dBuff = DataBuffer(buff)
->>> hex(dBuff.readUInt32())
-'0x45616245' # 0x45, 'a', 'b', 0x45 in hex
+>>> hex(dBuff.readUInt32()) # 0x45, 'a', 'b', 0x45 in hex
+'0x45616245'
 >>> id(buff) == id(dBuff.buff)
 True
 >>> id(dBuff) == id(DataBuffer(buff)) # Check if the cache works

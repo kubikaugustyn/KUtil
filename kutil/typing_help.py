@@ -388,11 +388,39 @@ def dictUnion(*dicts: MutableMapping):
     return newDict
 
 
+# dictUnion({"a": 6}, {"a": 8}, {"b": 7})
+
+
 def neverCall(*args, **kwargs) -> Never:
+    """
+    A function that should never be called.
+    Useful as a placeholder, for example, before an event listener function is registered.
+    """
     raise Exception("This function should never be called")
 
 
-# dictUnion({"a": 6}, {"a": 8}, {"b": 7})
+def returnTrue(*args, **kwargs) -> Literal[True]:
+    """
+    A function that will always return True when called.
+    Useful as a placeholder, for example, before an event listener function is registered.
+    """
+    return True
+
+
+def returnFalse(*args, **kwargs) -> Literal[False]:
+    """
+    A function that will always return False when called.
+    Useful as a placeholder, for example, before an event listener function is registered.
+    """
+    return False
+
+
+def returnFactory[T:Any](returnValue: T) -> Callable[..., T]:
+    """
+    A function that will always return the provided argument when called.
+    Useful as a placeholder, for example, before an event listener function is registered.
+    """
+    return lambda *args, **kwargs: returnValue
 
 
 # Additional types

@@ -58,7 +58,7 @@ class Employee(Thread):
         # This is the worst code I've ever written (I think)
         self.exit()
         self.exceptions.append(e)
-        self.interpreterWaiter.release()
+        self.interpreterWaiter.reset()
 
     def run(self) -> None:
         iterator = iter(self.bytecode)
@@ -79,7 +79,7 @@ class Employee(Thread):
                 # print(self.info.name, "Non-boss repeat")
 
                 for waiter in self.doneWaiters:
-                    waiter.release()
+                    waiter.reset()
                 self.doneWaiters = []
 
                 self.waiter.reset()
@@ -92,7 +92,7 @@ class Employee(Thread):
         for name in self.info.employees:
             self.employees[name].exit()
 
-        self.interpreterWaiter.release()
+        self.interpreterWaiter.reset()
 
     def execInstruction(self, instruction: PTInstruction, additionalBytes: Optional[bytes]):
         additionalNumber = None
@@ -146,13 +146,13 @@ class Employee(Thread):
         if self.stop.is_set():
             self.throw(ValueError(f"Cannot call {self.info.name} while he is going home"))
         self.isRunning.set()
-        self.waiter.release()
+        self.waiter.reset()
 
     def exit(self):
         self.stop.set()
-        self.waiter.release()
+        self.waiter.reset()
         for waiter in self.doneWaiters:
-            waiter.release()  # Idk
+            waiter.reset()  # Idk
 
     def waitUntilEmployeeDone(self, name: str):
         waiter: ThreadWaiter = ThreadWaiter()

@@ -73,7 +73,7 @@ class PTInterpreter(BytecodeInterpreter):
         except Exception as e:
             for employee in employees.values():
                 employee.exit()
-                employee.waiter.release()
+                employee.waiter.reset()
             canvas.exit()
             return InterpreterExitCode.ERROR, InterpreterError(e)
 

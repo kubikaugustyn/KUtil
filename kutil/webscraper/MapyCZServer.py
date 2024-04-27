@@ -19,6 +19,7 @@ from kutil.protocol.HTTP.HTTPResponse import HTTPResponse
 from kutil.protocol.HTTP.HTTPRequest import HTTPRequest
 from kutil.protocol.HTTPServer import HTTPServerConnection
 from kutil.protocol.URLSearchParams import URLSearchParams
+from kutil.io.file import readFile, writeFile
 
 from kutil.webscraper.WebScraperServer import WebScraperServer
 
@@ -127,7 +128,7 @@ class MapyCZServer(WebScraperServer):
         if conn not in self.__workingConnections:
             raise ValueError("Cannot pop a non-working connection")
         self.__workingConnections.remove(conn)
-        self.__connectionCloseWaiter.release()
+        self.__connectionCloseWaiter.reset()
 
     def onDataInner(self, conn: HTTPServerConnection, req: HTTPRequest) -> HTTPResponse:
         # print("URL:", req.requestURI)
@@ -449,9 +450,8 @@ class MapyCZServer(WebScraperServer):
                        data: bytes):
         if self.__cachePath is None:
             return
-        self.__cacheSizeLimiterWaiter.release()
-        with open(self.__getCacheFilePath(x, y, zoom, tileSize, mapSet, lang), "wb+") as f:
-            f.write(data)
+        self.__cacheSizeLimiterWaiter.reset()
+        writeFile(self.__getCacheFilePath(x, y, zoom, tileSize, mapSet, lang), data)
 
     def __obtainFromCache(self, x: int, y: int, zoom: int, tileSize: str, mapSet: MapSet,
                           lang: str) -> Optional[bytes]:
@@ -460,8 +460,7 @@ class MapyCZServer(WebScraperServer):
         path = self.__getCacheFilePath(x, y, zoom, tileSize, mapSet, lang)
         if not os.path.exists(path):
             return None
-        with open(path, "rb") as f:
-            return f.read()
+        return readFile(path, "bytes")
 
     def __cleanExcessCacheItems(self):
         while True:
@@ -525,14 +524,14 @@ class MapyCZServer(WebScraperServer):
     def __getUsageHTMLTemplate() -> bytes:
         if MapyCZServer.usageHTMLTemplate is not None:
             return MapyCZServer.usageHTMLTemplate
-        with open(os.path.join(os.path.dirname(__file__), "MapyCZServerUsage.html"), "rb") as f:
-            MapyCZServer.usageHTMLTemplate = f.read()
+        path = os.path.join(os.path.dirname(__file__), "MapyCZServerUsage.html")
+        MapyCZServer.usageHTMLTemplate = readFile(path, "bytes")
         return MapyCZServer.usageHTMLTemplate
 
     @staticmethod
     def __getUsageQGIS() -> bytes:
         if MapyCZServer.usageQGIS is not None:
             return MapyCZServer.usageQGIS
-        with open(os.path.join(os.path.dirname(__file__), "MapyCZServerQGIS.png"), "rb") as f:
-            MapyCZServer.usageQGIS = f.read()
+        path = os.path.join(os.path.dirname(__file__), "MapyCZServerQGIS.png")
+        MapyCZServer.usageQGIS = readFile(path, "bytes")
         return MapyCZServer.usageQGIS

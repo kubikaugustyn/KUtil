@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from typing import Any
+from typing import Any, Optional
 
 from kutil.buffer.ByteBuffer import ByteBuffer, OutOfBoundsReadError, OutOfBoundsUndoError
 from kutil.protocol.AbstractProtocol import AbstractProtocol, StopUnpacking, NeedMoreDataError
