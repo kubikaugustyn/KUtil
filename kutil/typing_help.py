@@ -1,5 +1,5 @@
 """
-This is the typing module of KUtil containing the singleton decorator (just now).
+This is the typing module of KUtil containing helpers for typing.
 """
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
@@ -425,3 +425,5 @@ def returnFactory[T:Any](returnValue: T) -> Callable[..., T]:
 
 # Additional types
 type FinalStr = Final[str]
+type LiteralTrue = Literal[True]
+type LiteralFalse = Literal[False]

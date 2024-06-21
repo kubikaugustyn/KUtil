@@ -183,6 +183,46 @@ subdirIter = d.enumDirs("/path/to/dir", extendedInfo=False)
 parent = d.getDirParent("/path/to/dir")
 ```
 
+## kutil.iterator_help
+
+The `kutil.iterator_help` helper module serves as a collection of iteration helpers. For now it only contains a float
+range.
+
+### rangeFloat()
+
+Arguments are defined in the function docstring, but to summarize:
+
+**There are two ways of calling rangeFloat():**
+
+- `rangeFloat(end, **kwargs)` - will loop from 0 (inclusive) to end (exclusive)
+- `rangeFloat(start, end, **kwargs)` - will loop from start (inclusive) to end (exclusive)
+
+**The keyword arguments are the following:**
+
+- `step` - the change per iteration
+- `toFloat` - yield float or decimal.Decimal objects?
+- `precision` - how precise do you want it to be. If set to 3, you can store 3.14
+- `eMax` - the maximum value for the e notation: 1.1e+69
+- `eMin` - the minimum value for the e notation: 1.1e-69
+
+All floats provided to the function must NOT be of the float type. They must be one of the following:
+
+- `int` - an integer
+- `str` - a string version of the float
+- `decimal.Decimal` - the actual format of the value that is used internally to manage the precision etc.
+
+**Here is an example of the float usage:**
+
+```python
+from kutil.iterator_help import rangeFloat
+
+for i in rangeFloat(1, step=".1", toFloat=True):
+    print(i)  # Will go through 0, 0.1, 0.2, ..., 0.9
+    
+for i in rangeFloat(1, -1, step="-.5", toFloat=True):
+    print(i)  # Will go through 1, 0.5, 0, -0.5
+```
+
 # TODO
 
 This readme is TODO — not all features may be covered yet. Don't worry and contact me if you are uncertain regarding
