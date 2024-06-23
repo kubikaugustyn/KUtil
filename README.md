@@ -185,8 +185,8 @@ parent = d.getDirParent("/path/to/dir")
 
 ## kutil.iterator_help
 
-The `kutil.iterator_help` helper module serves as a collection of iteration helpers. For now it only contains a float
-range.
+The `kutil.iterator_help` helper module serves as a collection of iteration helpers.
+For now, it only contains a float range.
 
 ### rangeFloat()
 
@@ -211,16 +211,91 @@ All floats provided to the function must NOT be of the float type. They must be 
 - `str` - a string version of the float
 - `decimal.Decimal` - the actual format of the value that is used internally to manage the precision etc.
 
-**Here is an example of the float usage:**
+**Here are two examples of the float range usage:**
 
 ```python
 from kutil.iterator_help import rangeFloat
 
 for i in rangeFloat(1, step=".1", toFloat=True):
     print(i)  # Will go through 0, 0.1, 0.2, ..., 0.9
-    
+
 for i in rangeFloat(1, -1, step="-.5", toFloat=True):
     print(i)  # Will go through 1, 0.5, 0, -0.5
+```
+
+## kutil.progress
+
+The `kutil.progress` module serves as a collection of progress bar printing helpers.
+For now, it only contains a ProgressBar class and a progress factory.
+
+### ProgressBar
+
+**The arguments are the following:**
+
+- `maxProgress` - The maximum progress value the ProgressBar can reach
+- `title` - (optional) The title of the ProgressBar to show on a line before the ProgressBar
+- `width` - The width of the ProgressBar's actual bar characters. To get the maximum possible width in characters, read
+  the `maxWidth` property.
+- `showPercentage` - Whether the ProgressBar should show how many % have already "passed"
+- `showProgressCount` - Whether the ProgressBar should show the "progress/maxProgress" values
+- `deleteBarOnEnded` - Whether the ProgressBar should be deleted after calling the `end()` function. It has nothing to
+  do with the `delete()` function. It deletes the bar line (not the title if provided) so the output is less polluted.
+
+You can always get and set the arguments of the ProgressBar, so you don't have to provide all arguments when creating
+the object, although they can only be changed before the `begin()` call or after the `end()` call and before `delete()`
+is called.
+
+**Here are two examples of the ProgressBar usage:**
+
+```python
+from kutil.progress import ProgressBar
+from time import sleep
+
+# You can either create the bar manually - begin(), repeatedly update(x) and then end()
+progress: ProgressBar = ProgressBar(10, "Loading", width=10, showProgressCount=True)
+progress.begin()
+for _ in range(10):
+    progress.update(1)
+    sleep(.5)
+progress.end()
+
+# Or you can only call update(x) using a context manager by using the with statement
+with ProgressBar(10, "Loading within WITH", width=10, showProgressCount=True) as bar:
+    for _ in range(10):
+        bar.update(1)
+        sleep(.5)
+```
+
+### progressFactory()
+
+**The arguments are:**
+
+- Those provided to the initial call to progressFactory()
+- Those provided to the call to the ProgressBarFactory (returned by the initial call to progressFactory())
+
+**The arguments are used in this order:**
+
+1. The arguments provided to the call to the ProgressBarFactory (returned by the initial call to progressFactory())
+2. The arguments provided to the initial call to progressFactory() - these are overwritten by the higher priority
+   arguments above
+
+**Here is an example of the progress factory usage:**
+
+```python
+from kutil.progress import progressFactory, ProgressBarFactory
+from time import sleep
+
+# We set up our preferred settings at one place
+factory: ProgressBarFactory = progressFactory(maxProgress=10,
+                                              width=10, showPercentage=True,
+                                              showProgressCount=True, deleteBarOnEnded=True)
+
+for n in range(1, 6):  # Let's pretend we're looping over a list of URLs to download
+    # Then we just overwrite some arguments to get our desired ProgressBar
+    with factory(title=f"Loading with factory #{n}") as bar:
+        for _ in range(10):  # And pretend that we're downloading the file here
+            bar.update(1)
+            sleep(.1)
 ```
 
 # TODO

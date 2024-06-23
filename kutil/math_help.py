@@ -34,3 +34,7 @@ def toDecimal(someFloat: PreciseFloat, precision: int = DEFAULT_PRECISION,
         else:
             raise ValueError(f"Unknown type to convert: {type(someFloat)}")
     return someFloat
+
+
+def clamp(x, minimum, maximum):
+    return min(max(x, minimum), maximum)
