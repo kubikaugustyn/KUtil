@@ -7,6 +7,7 @@ __author__ = "kubik.augustyn@post.cz"
 import inspect
 import sys
 from typing import *
+from functools import wraps
 
 # Exported things
 from frozenlist import FrozenList
@@ -322,6 +323,7 @@ def _overloader_factory() -> Callable:
 
 
 def overload_args(fn: Callable) -> Callable:
+    """ DO NOT USE!!! """
     raise NotImplementedError("It's implemented, but not properly :-/")
     # TODO Fix it
     """

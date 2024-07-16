@@ -5,13 +5,14 @@ import inspect
 import itertools
 import re
 from collections.abc import ItemsView
-from typing import Any, Callable
+from typing import Any, Callable, Type
+from typeguard import check_type, TypeCheckError
 
 
 def getScopes(*, skipFrames: int = 0, localsOnly: bool = False) -> list[ItemsView[str, Any]]:
     """
     Retrieves all the caller's scopes.
-    :param skipFrames: How many frames to skip (e.g., how many parent functions do you not care about)
+    :param skipFrames: How many frames to skip (e.g., how many parent functions do you skip)
     :param localsOnly: Whether only local scopes should be retrieved
     :return: List of scope dict item iterables (`dict.items()`)
     """
@@ -30,6 +31,22 @@ def getScopes(*, skipFrames: int = 0, localsOnly: bool = False) -> list[ItemsVie
             scopes.append(caller.f_globals.copy().items())
 
     return scopes
+
+
+def getVariableValueByName[T](name: str, *, variableType: Type[T] = Any, skipFrames: int = 0,
+                              localsOnly: bool = False) -> T:
+    scopes = getScopes(skipFrames=skipFrames + 1, localsOnly=localsOnly)
+
+    for varName, varVal in itertools.chain(*scopes):
+        if varName == name:
+            break
+    else:
+        raise KeyError(f"Variable '{name}' not found")
+
+    try:
+        return check_type(varVal, variableType)
+    except TypeCheckError:
+        raise ValueError(f"Variable '{name}' is not of type '{variableType}'")
 
 
 def getVariableNames(value: Any, *, skipFrames: int = 0, localsOnly: bool = False,

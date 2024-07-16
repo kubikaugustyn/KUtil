@@ -9,7 +9,7 @@ if __name__ == '__main__':
     # scrapeAroundWorkerCount - pocet workeru okoniho scrapovani ^
     # maxConnections je jen orientacni hodnota
     # sessionCount je pocet soucasnych pripojeni k mapy.cz serveru
-    server: MapyCZServer = MapyCZServer(port=999, host="192.168.1.66",
+    server: MapyCZServer = MapyCZServer(port=999, host="localhost",
                                         scrapeAroundAutomatically=False,
                                         scrapeAroundWorkerCount=1,
                                         maxConnections=10,
