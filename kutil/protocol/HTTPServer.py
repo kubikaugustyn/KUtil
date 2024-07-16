@@ -7,7 +7,7 @@ from typing import Callable, Any, Self, Optional
 from kutil.typing_help import neverCall, returnFalse
 
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError
-from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.ByteBuffer import ByteBuffer, OutOfBoundsReadError
 from kutil.protocol.ProtocolConnection import ProtocolConnection
 from kutil.protocol.ProtocolServer import ProtocolServer
 from kutil.protocol.TCPConnection import TCPProtocol
@@ -40,7 +40,7 @@ class HTTPServerProtocol(AbstractProtocol):
         req = HTTPRequest()
         try:
             req.read(buff)
-        except Exception:
+        except OutOfBoundsReadError:
             raise NeedMoreDataError
         return req
 

@@ -7,6 +7,7 @@ from kutil.protocol.HTTP import HTTPResponse, HTTPRequest, HTTPMethod
 from kutil import HTTPConnection
 
 
+# TODO __printResponse is never called
 class TestHTTPConnection(TestCase):
     conn: HTTPConnection
 

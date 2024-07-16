@@ -14,3 +14,4 @@ class HTTPMethod(Enum):
     DELETE = b"DELETE"
     TRACE = b"TRACE"
     CONNECT = b"CONNECT"
+    PATCH = b"PATCH"

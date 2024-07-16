@@ -8,6 +8,7 @@ from kutil.buffer.Serializable import Serializable
 from kutil.protocol.HTTP.HTTPMethod import HTTPMethod
 from kutil.protocol.HTTP.HTTPHeaders import HTTPHeaders
 from typing import Final, Optional
+from kutil.math_help import clamp
 
 
 class HTTPThing(Serializable):
@@ -51,7 +52,7 @@ class HTTPThing(Serializable):
             self.headers[self.dec(name)] = self.dec(value)
             line = buff.readLine(self.CRLF)
         try:
-            bodySize: int = abs(int(self.headers.get("Content-Length", "0")))
+            bodySize: int = max(0, int(self.headers.get("Content-Length", "0")))
         except (ValueError, TypeError):
             bodySize: int = 0
         self.body = bytes(buff.read(bodySize))

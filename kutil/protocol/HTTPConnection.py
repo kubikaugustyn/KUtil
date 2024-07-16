@@ -25,6 +25,9 @@ class HTTPProtocol(AbstractProtocol):
         return buff  # Nothing lol
 
     def packData(self, data: HTTPRequest, buff: ByteBuffer):
+        # Make sure to mark the request
+        data.headers["User-Agent"] = "KUtil"
+
         data.write(buff)
 
     def packSubProtocol(self, buff: ByteBuffer):
