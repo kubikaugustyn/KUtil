@@ -5,6 +5,7 @@ from enum import Enum, unique
 from kutil import ByteBuffer
 from kutil.buffer.Serializable import Serializable
 
+
 @unique
 class WSOpcode(Enum):
     CONTINUATION_FRAME = 0x0
@@ -97,11 +98,13 @@ class WSMessage(Serializable):
         isMasked = bool(byte & 0b10000000)
         payloadLength: int = byte & 0b01111111
         if payloadLength == 126:
-            raise ValueError("Unknown endianness - big or little?")
-            # payloadLength = int.from_bytes(buff.read(2), "big", signed=False)
+            # See the TOD0 below!
+            # raise ValueError("Unknown endianness - big or little?")
+            payloadLength = int.from_bytes(buff.read(2), "big", signed=False)
         elif payloadLength == 127:
-            raise ValueError("Unknown endianness - big or little?")
-            # payloadLength = int.from_bytes(buff.read(8), "big", signed=False)
+            # See the TOD0 below!
+            # raise ValueError("Unknown endianness - big or little?")
+            payloadLength = int.from_bytes(buff.read(8), "big", signed=False)
         self.maskingKey = buff.read(4) if isMasked else None
         self.payload = WSData(bytes(buff.read(payloadLength)))
         self.payload.isBinary = self.opcode != WSOpcode.TEXT_FRAME
@@ -126,8 +129,12 @@ class WSMessage(Serializable):
             byte |= 127
         buff.writeByte(byte)
         if payloadBytes > 1:
-            raise ValueError("Unknown endianness - big or little?")
-            # buff.write(len(self.payload).to_bytes(payloadBytes, "big", signed=False))
+            # TODO Figure out if the WS endianness is correct
+            # Unknown endianness - big or little?
+            # Unexpected behavior may occur.
+            # Tested with Google Chrome and big-endian should be correct
+            # raise ValueError("Unknown endianness - big or little?")
+            buff.write(len(self.payload).to_bytes(payloadBytes, "big", signed=False))
         if self.isMasked:
             assert len(self.maskingKey) == 4
             buff.write(self.maskingKey)
