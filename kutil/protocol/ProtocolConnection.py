@@ -6,6 +6,7 @@ from typing import Callable, Any, Optional
 from socket import socket, AF_INET, SOCK_STREAM
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError, StopUnpacking
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 
 type OnDataListener = Callable[[ProtocolConnection, Any], None]
 type OnEstablishedListener = Callable[[ProtocolEstablishedConnection], None]
@@ -78,7 +79,7 @@ class ProtocolConnection:
             listener(self, cause)
 
     def receive(self):
-        buff: ByteBuffer = ByteBuffer()
+        buff: ByteBuffer = MemoryByteBuffer()
         try:
             while not self.closed:
                 data = self.sock.recv(1024 * 1024)
@@ -153,7 +154,7 @@ class ProtocolConnection:
     def sendData(self, data: Any, beginAtLayer: int = -1) -> bool:
         if beginAtLayer == -1:
             beginAtLayer = len(self.layers) - 1
-        buff: ByteBuffer = ByteBuffer()
+        buff: ByteBuffer = MemoryByteBuffer()
         for i in range(beginAtLayer, 0, -1):
             if i == beginAtLayer:
                 self.layers[beginAtLayer].packData(data, buff)

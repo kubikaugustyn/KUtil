@@ -7,7 +7,7 @@ from kutil.protocol.TLS import messages
 
 from kutil.protocol.TLS.ConnectionState import ConnectionState, ConnectionStateType
 
-from kutil import DataBuffer, ByteBuffer
+from kutil import DataBuffer, ByteBuffer, MemoryByteBuffer
 from kutil.protocol.TLS.RawTLSRecord import RawTLSRecord, TLSRecordType
 from kutil.protocol.TLS.AlertCause import AlertFatality, FATAL, WARNING_FATAL, WARNING, alertErrors
 from kutil.protocol.TLS.messages import Message, MessageType
@@ -52,7 +52,7 @@ class AlertRecord(RawTLSRecord):
         super().__init__(TLSRecordType.Alert, connectionState)
 
     def write(self, buff: ByteBuffer):
-        payloadBuff: ByteBuffer = ByteBuffer()
+        payloadBuff: ByteBuffer = MemoryByteBuffer()
 
         if self.level == -1 or self.code == -1:
             raise ValueError("Invalid level or code")
@@ -123,7 +123,7 @@ class ChangeCipherSpecRecord(RawTLSRecord):
         super().__init__(TLSRecordType.ChangeCipherSpec, connectionState)
 
     def write(self, buff: ByteBuffer):
-        payloadBuff: ByteBuffer = ByteBuffer()
+        payloadBuff: ByteBuffer = MemoryByteBuffer()
 
         payloadBuff.writeByte(self.protocolType)
 

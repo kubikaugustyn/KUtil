@@ -5,13 +5,14 @@ import zlib
 from typing import Self, Optional
 
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 
 
 class DataBuffer:
     _buff: ByteBuffer
 
     def __init__(self, buff: Optional[ByteBuffer] = None):
-        self._buff = buff if buff is not None else ByteBuffer()
+        self._buff = buff if buff is not None else MemoryByteBuffer()
 
     def __new__(cls, buff: Optional[ByteBuffer] = None):
         """

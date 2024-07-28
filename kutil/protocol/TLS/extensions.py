@@ -6,6 +6,7 @@ from typing import Final, Optional
 
 from kutil.buffer.DataBuffer import DataBuffer
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 
 from kutil.buffer.Serializable import Serializable
 
@@ -142,9 +143,9 @@ class KeyShareExtension(Extension):
 
     def write(self, buff: ByteBuffer):
         # TODO Don't use 2 buffers
-        payloadBuff = ByteBuffer()
+        payloadBuff = MemoryByteBuffer()
 
-        sharesBuff = ByteBuffer()
+        sharesBuff = MemoryByteBuffer()
         for share in self.clientShares:
             share.write(sharesBuff)
         DataBuffer(payloadBuff).writeUInt16(len(sharesBuff.export()))
@@ -184,7 +185,7 @@ def readExtensions(buff: ByteBuffer, minByteSize: int) -> list[Extension]:
 
 
 def writeExtensions(buff: ByteBuffer, minByteSize: int, extensions: list[Extension]) -> None:
-    extensionBuff = ByteBuffer()
+    extensionBuff = MemoryByteBuffer()
     for extension in extensions:
         extension.write(extensionBuff)
     assert minByteSize <= len(extensionBuff.export()) <= pow(2, 16) - 1

@@ -4,6 +4,7 @@ __author__ = "kubik.augustyn@post.cz"
 from abc import abstractmethod, ABC
 
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 
 from kutil.io.file import writeFile
 from kutil.language.AST import AST
@@ -25,7 +26,7 @@ class Compiler(ABC):
         :return: The bytecode file
         """
         file = self.compileInner(ast, codeCRC32, options)
-        buff: ByteBuffer = ByteBuffer()
+        buff: ByteBuffer = MemoryByteBuffer()
         file.write(buff)
         writeFile(outputFile, buff.export())
         return file

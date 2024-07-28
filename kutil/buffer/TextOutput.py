@@ -4,6 +4,7 @@ __author__ = "kubik.augustyn@post.cz"
 from typing import Optional
 
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 
 
 class TextOutput:
@@ -16,7 +17,7 @@ class TextOutput:
     def __init__(self, data: Optional[str] = None, buff: Optional[ByteBuffer] = None, encoding: str = "utf-8",
                  callPrint: bool = False):
         self.encoding = encoding
-        self.buff = buff or ByteBuffer()
+        self.buff = buff or MemoryByteBuffer()
         self.callPrint = callPrint
         if data is not None:
             self.print(data)

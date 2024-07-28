@@ -7,7 +7,7 @@ from typing import Any, Optional, Generator, Iterator
 from kutil.buffer.DataBuffer import DataBuffer
 from kutil.language.Error import CompilerError
 
-from kutil import ByteBuffer
+from kutil import ByteBuffer, MemoryByteBuffer
 from kutil.language.AST import AST, ASTNode
 from kutil.language.BytecodeFile import InstructionGenerator, Instruction, Bytecode, BytecodeFile, \
     CRC32MismatchError
@@ -124,7 +124,7 @@ class PTBytecodeFile(BytecodeFile):
         self.crc32 = 0
 
     def addContract(self) -> tuple[ByteBuffer, PTBytecode]:
-        buff: ByteBuffer = ByteBuffer()
+        buff: ByteBuffer = MemoryByteBuffer()
         bytecode: PTBytecode = PTBytecode()
         self.contracts.append((buff, bytecode))
         return buff, bytecode

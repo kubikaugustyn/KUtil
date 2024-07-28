@@ -7,6 +7,7 @@ __author__ = "kubik.augustyn@post.cz"
 from typing import BinaryIO, Optional, Type
 
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 from kutil.storage.bon.shared import *
 from kutil.storage.bon.decoder import BonDecoder
 from kutil.storage.bon.encoder import BonEncoder
@@ -29,7 +30,7 @@ def load_binary(data: bytes | bytearray, encoding: EncodingType = GZIP,
     if encoding not in (RAW, GZIP):
         raise ValueError(f"Invalid encoding provided: {encoding}")
 
-    buff: ByteBuffer = ByteBuffer(data)
+    buff: ByteBuffer = MemoryByteBuffer(data)
     if cls is None:
         return _defaultDecoder.decode(buff, encoding)
     return cls().decode(buff, encoding)
@@ -49,7 +50,7 @@ def dump_binary(data: BonData, encoding: EncodingType = GZIP,
     if encoding not in (RAW, GZIP):
         raise ValueError(f"Invalid encoding provided: {encoding}")
 
-    buff: ByteBuffer = ByteBuffer()
+    buff: ByteBuffer = MemoryByteBuffer()
     if cls is None:
         _defaultEncoder.encode(buff, data, encoding)
     else:

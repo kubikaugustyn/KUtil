@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 from kutil.protocol.ProtocolConnection import ProtocolConnection, ConnectionClosed
 from kutil.protocol.WS import WSMessage, WSOpcode, WSData
 
@@ -57,7 +58,7 @@ class WSConnection(ProtocolConnection):
     dataBuffer: ByteBuffer
 
     def init(self):
-        self.dataBuffer = ByteBuffer()
+        self.dataBuffer = MemoryByteBuffer()
 
     def onDataInner(self, data: WSMessage, stoppedUnpacking: bool = False,
                     layer: Optional[AbstractProtocol] = None) -> bool | WSData:

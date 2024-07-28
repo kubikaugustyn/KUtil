@@ -11,8 +11,6 @@ RAW: EncodingType = 1
 GZIP: EncodingType = 2
 
 MAGIC: bytes = b'BON'
-INT_SIZE = 4
-FLOAT_SIZE = 4
 
 
 @unique

@@ -9,6 +9,7 @@ from kutil.buffer.DataBuffer import DataBuffer
 from kutil.io.file import readFile, writeFile
 
 from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 
 
 class CRC32MismatchError(AssertionError):
@@ -36,7 +37,7 @@ class Bytecode(ABC):
     buff: ByteBuffer
 
     def __init__(self):
-        self.buff = ByteBuffer()
+        self.buff = MemoryByteBuffer()
 
     def load(self, fileName: Optional[str] = None, file: Optional[BinaryIO] = None,
              buff: Optional[ByteBuffer] = None):
@@ -116,7 +117,7 @@ class BytecodeFile(ABC):
 
         buff.write(len(pool).to_bytes(4, byteorder="big", signed=False))
 
-        tmpBuff: ByteBuffer = ByteBuffer()
+        tmpBuff: ByteBuffer = MemoryByteBuffer()
         dataBuff: DataBuffer = DataBuffer(tmpBuff)
         for item in pool:
             writer(item, dataBuff)
@@ -134,7 +135,7 @@ class BytecodeFile(ABC):
         poolSize = int.from_bytes(buff.read(4), byteorder="big", signed=False)
         pool: list[Any] = [None] * poolSize
 
-        tmpBuff: ByteBuffer = ByteBuffer()
+        tmpBuff: ByteBuffer = MemoryByteBuffer()
         dataBuff: DataBuffer = DataBuffer(tmpBuff)
         for i in range(poolSize):
             itemSize = int.from_bytes(buff.read(4), byteorder="big", signed=False)

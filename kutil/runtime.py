@@ -5,8 +5,23 @@ import inspect
 import itertools
 import re
 from collections.abc import ItemsView
+from types import FrameType
 from typing import Any, Callable, Type
 from typeguard import check_type, TypeCheckError
+
+
+def getCallerFrame(*, skipFrames: int = 0) -> FrameType:
+    if skipFrames < 0:
+        raise ValueError("Cannot skip less than 0 frames")
+
+    frames = inspect.stack()
+    try:
+        # Also skip self + who is calling getCallerFrame() = 2
+        frameInfo: inspect.FrameInfo = frames[skipFrames + 2]
+    except IndexError:
+        raise RuntimeError(f"No frame after skipping {skipFrames} found")
+    caller: FrameType = frameInfo.frame
+    return caller
 
 
 def getScopes(*, skipFrames: int = 0, localsOnly: bool = False) -> list[ItemsView[str, Any]]:
@@ -24,7 +39,7 @@ def getScopes(*, skipFrames: int = 0, localsOnly: bool = False) -> list[ItemsVie
     frames = inspect.stack()
     for i in range(skipFrames + 1, len(frames)):
         frameInfo: inspect.FrameInfo = frames[i]
-        caller = frameInfo.frame
+        caller: FrameType = frameInfo.frame
 
         scopes.append(caller.f_locals.copy().items())
         if not localsOnly:
@@ -139,3 +154,7 @@ def getVariableName(value: Any, skipFrames: int = 0, localsOnly: bool = False) -
                     return match.group(3)
 
     return names.pop()  # Pick one randomly if regex fails
+
+
+__all__ = ["getCallerFrame", "getScopes", "getVariableValueByName", "getVariableNames",
+           "getVariableName"]

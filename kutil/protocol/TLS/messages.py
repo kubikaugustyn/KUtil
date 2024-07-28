@@ -14,7 +14,7 @@ from kutil.protocol.TLS.CipherSuite import CipherSuite, CERTIFICATE_SUITES, SRP_
 
 from kutil.buffer.DataBuffer import DataBuffer
 
-from kutil import ByteBuffer
+from kutil import ByteBuffer, MemoryByteBuffer
 from kutil.buffer.Serializable import Serializable
 
 from kutil.protocol.TLS.ConnectionState import TLSVersion, ConnectionState
@@ -83,7 +83,8 @@ class ClientHelloMessage(Message):
     extensions: list[Extension]
 
     def __init__(self, protocolVersion: TLSVersion, random: Optional[bytes] = None,
-                 sessionID: Optional[bytes] = None, cipherSuites: Optional[list[CipherSuite]] = None,
+                 sessionID: Optional[bytes] = None,
+                 cipherSuites: Optional[list[CipherSuite]] = None,
                  compressionMethods: Optional[bytes] = None,
                  extensions: Optional[list[Extension]] = None):
         self.protocolVersion = protocolVersion
@@ -97,7 +98,7 @@ class ClientHelloMessage(Message):
         super().__init__(MessageType.ClientHello, b'')
 
     def write(self, buff: ByteBuffer):
-        b = ByteBuffer()
+        b = MemoryByteBuffer()
         dBuff = DataBuffer(b)
         b.writeByte(self.protocolVersion.value[0]).writeByte(self.protocolVersion.value[1])
         assert len(self.random) == 32
@@ -129,7 +130,8 @@ class ServerHelloMessage(Message):
 
     def __init__(self, protocolVersion: Optional[TLSVersion] = None, random: Optional[bytes] = None,
                  sessionIDEcho: Optional[bytes] = None, cipherSuite: Optional[CipherSuite] = None,
-                 compressionMethod: Optional[int] = None, extensions: Optional[list[Extension]] = None):
+                 compressionMethod: Optional[int] = None,
+                 extensions: Optional[list[Extension]] = None):
         self.protocolVersion = protocolVersion
         self.random = random if random is not None else os.urandom(32)
         self.sessionIDEcho = sessionIDEcho if sessionIDEcho is not None else b''
@@ -276,7 +278,7 @@ class ClientKeyExchangeMessage(Message):
             raise NotImplementedError(f"Unknown cipher suite: {self.cipherSuite.name}")
 
     def write(self, buff: ByteBuffer):
-        b = ByteBuffer()
+        b = MemoryByteBuffer()
         dBuff = DataBuffer(b)
 
         # https://github.com/tlsfuzzer/tlslite-ng/blob/6db0826e5ba19ae35e898bd9e6d8410662b4528c/tlslite/messages.py#L1756-L1770

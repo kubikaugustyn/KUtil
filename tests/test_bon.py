@@ -1,6 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+from typing import Any
 from unittest import TestCase
 
 from kutil.storage.bon import load, dump, GZIP, RAW
@@ -11,7 +12,8 @@ class TestBON(TestCase):
         enc = RAW
         # enc = GZIP
 
-        data = {
+        type DataType = dict[str, str | dict[str, Any] | list[Any]]
+        data: DataType = {
             "hello": "World",
             "test": {
                 "int": 69,
@@ -27,7 +29,7 @@ class TestBON(TestCase):
 
         dump(open("test.bon", "wb+"), data, encoding=enc)
 
-        loaded_data = load(open("test.bon", "rb"), encoding=enc)
+        loaded_data: DataType = load(open("test.bon", "rb"), encoding=enc)
 
         self.assertEqual(loaded_data["hello"], "World")
         self.assertEqual(loaded_data["test"]["int"], 69)

@@ -13,6 +13,9 @@ if __name__ == "__main__":
     from tests.typing_test import TestTyping  # Test typing
     from tests.test_bon import TestBON  # Test BON
     from tests.test_js import TestJavascript  # Test JS
-    from tests.test_bytebuffer import TestByteBuffer  # Test ByteBuffer
+    from tests.test_memorybytebuffer import TestMemoryByteBuffer  # Test TestMemoryByteBuffer
+    from tests.test_filebytebuffer import TestFileByteBuffer  # Test TestFileByteBuffer
 
     main()
+
+# TODO Use the PyCharm IDE's tests window

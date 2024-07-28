@@ -3,14 +3,14 @@ __author__ = "kubik.augustyn@post.cz"
 
 from unittest import TestCase
 
-from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil import ByteBuffer, MemoryByteBuffer
 
 
-class TestByteBuffer(TestCase):
+class TestMemoryByteBuffer(TestCase):
     buff: ByteBuffer
 
     def setUp(self):
-        self.buff = ByteBuffer()
+        self.buff = MemoryByteBuffer()
 
     def tearDown(self):
         self.buff.reset()
