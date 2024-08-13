@@ -221,18 +221,29 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
 
     def copy(self) -> Self:
         copyBuff = FileByteBuffer(None)  # Will create an in-memory buffer
+        self.copyInto(copyBuff)
+        return copyBuff
+
+    def copyInto(self, other: Self) -> Self:
+        """
+        Copies the current FileByteBuffer's content into the other FileByteBuffer,
+        clearing its previous contents.
+        :param other: The buffer to copy into
+        :return: Self to support chaining
+        """
 
         # Copy the data 10MB at a time
         self._syncPointer(0)
-        copyBuff._syncPointer(0)
+        other.reset()  # Clear the other buffer
+        other._syncPointer(0)
         while True:
             chunk = self._data.read(1024 * 1024 * 10)
             if len(chunk) == 0:
                 break
-            assert copyBuff._data.write(chunk) == len(chunk)
+            assert other._data.write(chunk) == len(chunk)
 
-        copyBuff._pointer = self._pointer
-        return copyBuff
+        other._pointer = self._pointer
+        return self
 
     def __repr__(self) -> str:
         return (f"FileByteBuffer(length={self.fullLength()}, bytes_left={self.leftLength()}, "

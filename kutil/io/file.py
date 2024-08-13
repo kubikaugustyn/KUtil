@@ -5,7 +5,8 @@ import json
 import os.path
 
 from kutil.buffer.ByteBuffer import ByteBuffer
-from kutil.typing_help import FinalStr, Final, Literal, overload
+from kutil.buffer.FileByteBuffer import FileByteBuffer
+from kutil.typing_help import FinalStr, Final, Literal, overload, BinaryIO
 
 type OUTPUT_STR = Literal["text", "bytes", "bytearray", "json", "buffer"]
 type OUTPUT = str | bytes | bytearray | dict | ByteBuffer
@@ -33,37 +34,61 @@ def readFile(path: str, output: Literal["buffer"], encoding: str = "utf-8") -> B
 
 
 def readFile(path: str, output: OUTPUT_STR = "text", encoding: str = "utf-8") -> OUTPUT:
-    with open(path, "rb") as f:
+    f: BinaryIO | None = None
+    try:
+        f = open(path, "rb")
+
+        # Streamable stuff
+        if output == "json":
+            return json.load(f, encoding=encoding)
+        elif output == "buffer":
+            return FileByteBuffer(f)
+
+        # Non-streamable stuff
         content = f.read()
-    if output == "bytes":
-        return content
-    elif output == "bytearray":
-        return bytearray(content)
-    elif output == "text":
-        return content.decode(encoding)
-    elif output == "json":
-        return json.loads(content.decode(encoding))
-    elif output == "buffer":
-        return ByteBuffer(content)
-    else:
-        raise ValueError("Bad output kind.")
+        if output == "bytes":
+            return content
+        elif output == "bytearray":
+            return bytearray(content)
+        elif output == "text":
+            return content.decode(encoding)
+
+        # Unknown
+        else:
+            raise ValueError("Unknown output kind.")
+    # Make sure to close the file
+    finally:
+        if f is not None and not f.closed:
+            f.close()
 
 
 # Write file
 def writeFile(path: str, data: OUTPUT, encoding: str = "utf-8") -> None:
-    if isinstance(data, bytes):
-        content = data
-    elif isinstance(data, bytearray):
-        content = bytes(data)
-    elif isinstance(data, str):
-        content = data.encode(encoding)
-    elif isinstance(data, dict):
-        content = json.dumps(data).encode(encoding)
-    elif isinstance(data, ByteBuffer):
-        content = data.export()
-    else:
-        raise ValueError("Bad data kind.")
-    with open(path, "wb+") as f:
+    # Special case: JSON
+    if isinstance(data, dict):
+        with open(path, "w", encoding=encoding) as txtFile:
+            json.dump(data, txtFile, encoding=encoding)
+        return
+    # Special case: FileByteBuffer
+    elif isinstance(data, FileByteBuffer):
+        with open(path, "wb") as f:
+            # Copy the files very efficiently (hopefully)
+            data.copyInto(FileByteBuffer(f))
+        return
+
+    # Other cases create a byte object in memory
+    with open(path, "wb") as f:
+        if isinstance(data, bytes):
+            content = data
+        elif isinstance(data, bytearray):
+            content = bytes(data)
+        elif isinstance(data, str):
+            content = data.encode(encoding)
+        elif isinstance(data, ByteBuffer):
+            content = data.export()
+        else:
+            raise ValueError("Unknown data kind.")
+
         f.write(content)
 
 
