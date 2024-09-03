@@ -40,7 +40,7 @@ def readFile(path: str, output: OUTPUT_STR = "text", encoding: str = "utf-8") ->
 
         # Streamable stuff
         if output == "json":
-            return json.load(f, encoding=encoding)
+            return json.load(f)
         elif output == "buffer":
             return FileByteBuffer(f)
 
@@ -67,7 +67,7 @@ def writeFile(path: str, data: OUTPUT, encoding: str = "utf-8") -> None:
     # Special case: JSON
     if isinstance(data, dict):
         with open(path, "w", encoding=encoding) as txtFile:
-            json.dump(data, txtFile, encoding=encoding)
+            json.dump(data, txtFile)
         return
     # Special case: FileByteBuffer
     elif isinstance(data, FileByteBuffer):
