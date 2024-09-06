@@ -298,6 +298,10 @@ for n in range(1, 6):  # Let's pretend we're looping over a list of URLs to down
             sleep(.1)
 ```
 
+## kutil.pyngguin
+
+The `kutil.pyngguin` package is a **Py**thon **N**ext **Generation** **GUI** package for **N**erds.
+
 # TODO
 
 This readme is TODO — not all features may be covered yet. Don't worry and contact me if you are uncertain regarding
