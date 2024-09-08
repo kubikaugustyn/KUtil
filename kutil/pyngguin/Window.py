@@ -7,9 +7,8 @@ from typing import Self
 from kutil import singleton
 from kutil.typing_help import Final, Set
 
-from kutil.pyngguin.AbstractElement import AbstractContainerElement
-from kutil.pyngguin.enums import STICK
-from pyngguin import AbstractElement
+from kutil.pyngguin.AbstractElement import AbstractElement, AbstractContainerElement
+from kutil.pyngguin.enums_types import STICK, ChangeInfo
 
 _WINDOWS: Final[Set["Window"]] = set()
 
@@ -24,10 +23,19 @@ class WindowParent(AbstractContainerElement):
             return super()._notify_child_added(child)
         return self
 
-    def _set_underlying_width(self, new_width: int | None) -> None:
+    def _update_underlying_position(self, info: ChangeInfo) -> None:
         pass
 
-    def _set_underlying_height(self, new_height: int | None) -> None:
+    def _update_underlying_x(self, info: ChangeInfo) -> None:
+        pass
+
+    def _update_underlying_y(self, info: ChangeInfo) -> None:
+        pass
+
+    def _update_underlying_width(self, info: ChangeInfo) -> None:
+        pass
+
+    def _update_underlying_height(self, info: ChangeInfo) -> None:
         pass
 
     def __repr__(self) -> str:
@@ -39,9 +47,10 @@ class Window(AbstractContainerElement):
     _title: str
 
     def __init__(self):
-        super().__init__(WindowParent())
-        self._underlying = tk.Tk()
+        self._underlying = tk.Tk()  # DO NOT MOVE UNDER super().__init__(...) UNDER ANY CIRCUMSTANCES
         self._title = "Window"
+        super().__init__(parent=WindowParent())
+        self._underlying.bind("<Configure>", self._configure_listener)
 
         _WINDOWS.add(self)
 
@@ -54,11 +63,20 @@ class Window(AbstractContainerElement):
         self._title = new_title
         self._underlying.wm_title(new_title)
 
-    def _set_underlying_width(self, new_width: int | None) -> None:
-        self._underlying.geometry(f"{new_width or 0}x{self._height or 0}")
+    def _update_underlying_position(self, info: ChangeInfo) -> None:
+        raise NotImplementedError
 
-    def _set_underlying_height(self, new_height: int | None) -> None:
-        self._underlying.geometry(f"{self._width or 0}x{new_height or 0}")
+    def _update_underlying_x(self, info: ChangeInfo) -> None:
+        raise NotImplementedError
+
+    def _update_underlying_y(self, info: ChangeInfo) -> None:
+        raise NotImplementedError
+
+    def _update_underlying_width(self, info: ChangeInfo) -> None:
+        self._underlying.geometry(f"{self._width or 0}x{self._height or 0}")
+
+    def _update_underlying_height(self, info: ChangeInfo) -> None:
+        self._underlying.geometry(f"{self._width or 0}x{self._height or 0}")
 
     def set_stick(self, new_stick: int | STICK) -> Self:
         raise RuntimeError("You cannot stick the window in any direction.")
@@ -71,6 +89,10 @@ class Window(AbstractContainerElement):
 
     def get_stick(self) -> int:
         raise RuntimeError("You cannot stick the window in any direction.")
+
+    def _configure_listener(self, event) -> None:
+        print("Window configured")
+        self._on_self_changed(ChangeInfo(self, ))
 
 
 def main_loop() -> None:

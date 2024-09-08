@@ -17,7 +17,8 @@ def main() -> None:
 
     cont = Container(parent=window)
     # cont.set_stick(STICK.LEFT | STICK.TOP | STICK.BOTTOM)
-    # cont.width = 500
+    cont.width = 600
+    cont.height = 500
     cont.x = 100
     cont.y = 150
 
