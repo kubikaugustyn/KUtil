@@ -6,8 +6,11 @@ __author__ = "kubik.augustyn@post.cz"
 
 import inspect
 import sys
+from abc import ABCMeta
 from typing import *
 from functools import wraps
+
+from kutil.runtime import getCallerFrame
 
 # Exported things
 from frozenlist import FrozenList
@@ -202,6 +205,110 @@ def anyattribute(attributeStorageOrCls: str | type):
     else:
         return wrapper(cls=attributeStorageOrCls)
 
+
+class SuperMethodNotCalledError(RuntimeError): ...
+
+
+class EnforceSuperCallMeta(ABCMeta, type): # Extends ABC to not cause a TypeError in some scenarios
+    def __new__(cls, name: str, bases: tuple[type], attrs: dict[str, Any]):
+        """
+        What the heck are metaclasses? https://stackoverflow.com/a/6581949
+        :param name: Name of the class
+        :param bases: Tuple of the parent class (for inheritance, but can also be empty)
+        :param attrs: Dictionary containing attribute names and values
+        """
+        for attr_name, method in attrs.items():
+            # If the entry's value is a method, e.g., is callable, we may wrap it
+            if not callable(method):
+                continue
+
+            # If the method also exists in the parent class, we wrap it
+            for base in bases:
+                parent_method = getattr(base, attr_name, None)
+                if parent_method is None:
+                    continue
+                elif not callable(parent_method):
+                    continue
+                elif not getattr(parent_method, "__EnforceSuperCallMeta_should_enforce_super_call",
+                                 False):
+                    continue
+
+                attrs[attr_name] = cls._wrap_method(parent_method, name, method)  # Wrap it!
+                break
+        return super().__new__(cls, name, bases, attrs)
+
+    @staticmethod
+    def _wrap_method(parent_method: Callable, class_name: str, child_method: Callable):
+        @wraps(child_method)
+        def wrapper(self, *args, **kwargs):
+            # Check if the parent method's attribute to later check whether super() was called
+            # exists (e.g., some unexpected behavior occurred, probably caused by recursive calls of the child method)
+            if hasattr(parent_method, "__EnforceSuperCallMeta_super_called"):
+                raise RuntimeError(
+                    f"You may not recursively call {class_name}.{parent_method.__name__}(), "
+                    f"because the parent class's method used the @enforcesupercall decorator")
+
+            # Set the parent method wrapper's attribute to later check whether super() was called
+            setattr(parent_method, "__EnforceSuperCallMeta_super_called", False)
+
+            # print(f"Wrapper for the child method called: wrapper({self}, *{args}, **{kwargs})")
+
+            # Call the child method
+            result = child_method(self, *args, **kwargs)
+
+            # Check whether super() was called, e.g. the @enforcesupercall -> wrapper() was called
+            super_called = getattr(parent_method, "__EnforceSuperCallMeta_super_called", False)
+
+            # Delete the parent method wrapper's attribute used to check whether super() was called
+            delattr(parent_method, "__EnforceSuperCallMeta_super_called")
+
+            # Throw a runtime exception if super() was not called
+            if not super_called:
+                # from types import TracebackType, FrameType
+                err = SuperMethodNotCalledError(
+                    f"You must call super().{parent_method.__name__}() "
+                    f"in {class_name}.{parent_method.__name__}(), "
+                    f"because the parent class's method used the @enforcesupercall decorator")
+                # frame: FrameType = getattr(parent_method,
+                #                            "__EnforceSuperCallMeta_decorator_usage_frame", None)
+                # if frame is not None:
+                #     tb = TracebackType(None, frame, frame.f_lasti, frame.f_lineno)
+                #     cause = NotImplementedError("...").with_traceback(tb)
+                #     raise err from cause
+                # else:
+                raise err
+
+            return result
+
+        return wrapper
+
+
+def enforcesupercall(method: Callable) -> Callable:
+    setattr(method, "__EnforceSuperCallMeta_should_enforce_super_call", True)
+
+    # setattr(method, "__EnforceSuperCallMeta_decorator_usage_frame", getCallerFrame(skipFrames=0))
+
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        cls = type(self)
+        if type(cls) is not EnforceSuperCallMeta:
+            raise RuntimeError(f"You may not use the @enforcesupercall decorator on a method when "
+                               f"its class's metaclass is not {EnforceSuperCallMeta.__name__}")
+        # print(f"Wrapper for the parent method called: wrapper({self}, *{args}, **{kwargs})")
+        # If the parent method (its wrapper to be clear) is called directly, the attribute isn't set
+        if hasattr(wrapper, "__EnforceSuperCallMeta_super_called"):
+            assert not getattr(wrapper, "__EnforceSuperCallMeta_super_called"), "...what did u do?!"
+            setattr(wrapper, "__EnforceSuperCallMeta_super_called", True)
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
+
+"""
+class Parent(metaclass=EnforceSuperCallMeta):
+    @enforcesupercall
+    def foo(self) -> None: ...
+"""
 
 # Function decorators
 """def export(fn):
