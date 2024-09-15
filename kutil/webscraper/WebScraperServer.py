@@ -12,16 +12,17 @@ from kutil.protocol.HTTPServer import HTTPServer, HTTPServerConnection
 
 
 class WebScraperServer(ABC):
-    server: HTTPServer
+    server: HTTPServer | None
     port: int
     host: str
 
     def __init__(self, port: int = 666, host: str = "localhost"):
-        self.server = HTTPServer((host, port), self.onConnection)
+        self.server = None
         self.port = port
         self.host = host
 
     def listen(self):
+        self.server = HTTPServer((self.host, self.port), self.onConnection)
         self.server.listen()
 
     def onConnection(self, conn: ProtocolConnection):
