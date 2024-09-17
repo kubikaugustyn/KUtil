@@ -120,7 +120,7 @@ class ProgressBar:
         if self._title is not None:
             print(self._title)
         self.render()
-        ProgressBar.wakeProgressUpdaterThread()
+        ProgressBar.startProgressUpdaterThread()
 
     def end(self, *, deleteManually=False):
         if not self._showing:
