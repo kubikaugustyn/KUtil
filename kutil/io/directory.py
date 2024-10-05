@@ -2,6 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 import os
+import warnings
 from typing import Iterator, overload, Literal
 from kutil.runtime import getVariableValueByName
 
@@ -84,6 +85,11 @@ def getDunderFileDir(*, skipFrames: int = 0) -> str:
     :param skipFrames: How many frames to skip (e.g., how many parent functions do you skip)
     :return: The __file__'s full directory path
     """
+    warnings.warn(
+        "kutil.io.directory's getDunderFileDir() is deprecated, use os.getcwd() instead",
+        category=DeprecationWarning
+    )
+
     dunderFile: str = getVariableValueByName("__file__", variableType=str,
                                              skipFrames=skipFrames + 1, localsOnly=False)
     return os.path.dirname(os.path.abspath(dunderFile))
