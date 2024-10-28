@@ -55,7 +55,7 @@ def singleton(cls):
 
         if cls not in initialized:
             initialized.add(cls)
-            originalInit(cls)
+            originalInit(instances[cls])
 
         return None
 
