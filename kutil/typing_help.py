@@ -36,8 +36,10 @@ def singleton(cls):
     True
     """
     # https://stackoverflow.com/questions/42237752/single-instance-of-class-in-python
-    instances = {}
+    instances: dict[type, object] = {}
+    initialized: set[type] = set()
     originalNew = cls.__new__
+    originalInit = cls.__init__
 
     def _singleton(_, *args, **kw):
         if cls not in instances:
@@ -45,7 +47,20 @@ def singleton(cls):
             instances[cls] = originalNew(cls, *args, **kw)
         return instances[cls]
 
+    def _init_handler(_, *args, **kw):
+        if len(args) > 0 or len(kw) > 0:
+            count: int = len(args) + len(kw)
+            raise TypeError(f"A singleton's __init__ must take 0 arguments, "
+                            f"but {count} {'were' if count > 1 else 'was'} given.")
+
+        if cls not in initialized:
+            initialized.add(cls)
+            originalInit(cls)
+
+        return None
+
     cls.__new__ = _singleton
+    cls.__init__ = _init_handler
     return cls
 
 
@@ -209,7 +224,7 @@ def anyattribute(attributeStorageOrCls: str | type):
 class SuperMethodNotCalledError(RuntimeError): ...
 
 
-class EnforceSuperCallMeta(ABCMeta, type): # Extends ABC to not cause a TypeError in some scenarios
+class EnforceSuperCallMeta(ABCMeta, type):  # Extends ABC to not cause a TypeError in some scenarios
     def __new__(cls, name: str, bases: tuple[type], attrs: dict[str, Any]):
         """
         What the heck are metaclasses? https://stackoverflow.com/a/6581949
@@ -253,7 +268,12 @@ class EnforceSuperCallMeta(ABCMeta, type): # Extends ABC to not cause a TypeErro
 
             # print(f"Wrapper for the child method called: wrapper({self}, *{args}, **{kwargs})")
 
+            # TODO See the ChatGPT chat and see how to improve the error logs
+            # Uložení aktuálního snímku volání (frame)
+            # frame: FrameType = sys._getframe()  # Získání aktuálního snímku zásobníku
+
             # Call the child method
+            # FIXME Fix the error when the arguments provided to the wrapper don't match the arguments of the child method so it doesn't show as it was caused by the wrapper
             result = child_method(self, *args, **kwargs)
 
             # Check whether super() was called, e.g. the @enforcesupercall -> wrapper() was called
