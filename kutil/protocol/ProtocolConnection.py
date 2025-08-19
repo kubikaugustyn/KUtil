@@ -2,7 +2,7 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from threading import Thread
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, Self
 from socket import socket, AF_INET, SOCK_STREAM
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError, StopUnpacking
 from kutil.buffer.ByteBuffer import ByteBuffer
@@ -154,6 +154,12 @@ class ProtocolConnection:
     def sendData(self, data: Any, beginAtLayer: int = -1) -> bool:
         if beginAtLayer == -1:
             beginAtLayer = len(self.layers) - 1
+        if beginAtLayer < 0 or beginAtLayer >= len(self.layers):
+            raise ValueError("Cannot send data through a connection with no layers! This happens "
+                             "when trying to use conn.ownConnection.sendData() instead of "
+                             "conn.sendData() when dealing with an upgradeable connection "
+                             "(such as HTTPServerConnection). It may also happen when using "
+                             "beginAtLayer incorrectly.")
         buff: ByteBuffer = MemoryByteBuffer()
         for i in range(beginAtLayer, 0, -1):
             if i == beginAtLayer:

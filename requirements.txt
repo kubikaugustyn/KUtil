@@ -1,15 +1,15 @@
-opencv-python==4.10.0.84
-frozenlist==1.4.1
+opencv-python>=4.10.0.84
+frozenlist>=1.4.1
 
-colorama==0.4.6
-numpy==2.0.1
-cryptography==43.0.0
-requests==2.32.3
+colorama>=0.4.6
+numpy>=2.0.1
+cryptography>=43.0.0
+requests>=2.32.3
 
-certifi==2024.7.4
+certifi>=2024.7.4
 
-urllib3==2.2.2
+urllib3>=2.2.2
 
-typeguard==4.3.0
+typeguard>=4.3.0
 
-deprecation==2.1.0
+deprecation>=2.1.0

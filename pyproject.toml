@@ -1,12 +1,12 @@
 [build-system]
 # Copied that from https://github.com/Kronuz/esprima-python/blob/master/pyproject.toml
-requires = ["setuptools>=61.0", "wheel", "setuptools_scm[toml]>=8.0"]
+requires = ["setuptools>=75.8.0", "wheel", "setuptools_scm[toml]>=8.0"]
 build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 
 [project]
 name = "KUtil-jakubaugustyn"
-version = "0.0.12" # 28. 7. 2024
+version = "0.0.14" # 19. 8. 2025
 authors = [
     { name = "Jakub Augustýn", email = "kubik.augustyn@post.cz" },
     { name = "Radek Augustýn", email = "raugustyn@post.cz" },
@@ -19,6 +19,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+# https://stackoverflow.com/a/73600610
+dynamic = ["dependencies"]
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
 
 [project.urls]
 Homepage = "https://github.com/kubikaugustyn/KUtil"

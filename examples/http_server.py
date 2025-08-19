@@ -74,7 +74,7 @@ def onData(conn: HTTPServerConnection, data: HTTPRequest | WSData | SSEMessage):
     # print("Close connection.")
 
 
-def onWebsocketEstablishment(conn: HTTPServerConnection):
+def onWebsocketEstablishment(conn: HTTPServerConnection, req: HTTPRequest):
     assert conn.didUpgradeToWS
     conn.sendData(WSData("test"))
     conn.sendData(WSData("you"))
@@ -82,7 +82,7 @@ def onWebsocketEstablishment(conn: HTTPServerConnection):
     conn.sendData(WSData("baka"))
 
 
-def onSSEEstablishment(conn: HTTPServerConnection):
+def onSSEEstablishment(conn: HTTPServerConnection, req: HTTPRequest):
     assert conn.didUpgradeToSSE
     # print("SSE open")
     sse_conns.append(conn)
@@ -103,7 +103,10 @@ def onConnection(conn: ProtocolConnection):
 if __name__ == '__main__':
     Thread(target=sseThread).start()
 
-    addr = ("localhost", 666)
+    # Localhost makes it veeery slow to load in Chrome on Windows 10, fixed by using the IP in Chrome instead of localhost.
+    # The address here doesn't matter, it's just for the sake of the printing.
+    # addr = ("localhost", 666)
+    addr = ("127.0.0.1", 666)
     server: HTTPServer = HTTPServer(addr, onConnection)
     server.acceptWebsocket(acceptWebSocket)
     server.acceptServerSentEvents(acceptSSE)

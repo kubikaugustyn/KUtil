@@ -388,7 +388,7 @@ class JSLexer(OneUseLexer):
     }
 
     def codePointAt(self, i):
-        return ord(self.source[i:i + 2])
+        return ord(self.source[i:i + 1]) #FIXME was ord(self.source[i:i + 2])
 
     def scanHexEscape(self, prefix):
         length = 4 if prefix == 'u' else 2

@@ -1,0 +1,21 @@
+#  -*- coding: utf-8 -*-
+__author__ = "kubik.augustyn@post.cz"
+
+from unittest import main
+
+if __name__ == "__main__":
+    from kutil_tests.doctest_test import Tester  # Test the thing itself
+
+    from kutil_tests.tcp_connection import TestTCPConnection  # Test TCP connection
+    from kutil_tests.http_connection import TestHTTPConnection  # Test HTTP request
+    from kutil_tests.brainfuck import TestBrainFuck  # Test BrainFuck interpreter
+    from kutil_tests.thread_waiter import TestThreadWaiter  # Test thread pausing
+    from kutil_tests.typing_test import TestTyping  # Test typing
+    from kutil_tests.test_bon import TestBON  # Test BON
+    from kutil_tests.test_js import TestJavascript  # Test JS
+    from kutil_tests.test_memorybytebuffer import TestMemoryByteBuffer  # Test TestMemoryByteBuffer
+    from kutil_tests.test_filebytebuffer import TestFileByteBuffer  # Test TestFileByteBuffer
+
+    main()
+
+# TODO Use the PyCharm IDE's tests window

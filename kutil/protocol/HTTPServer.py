@@ -70,31 +70,37 @@ class ServerSentEventsNotAllowed(Exception):
 class HTTPServerConnection(ProtocolConnection):
     # Note that editing the __init__ method might break the whole thing
     onData: Callable[[Self, HTTPRequest | WSMessage], None]
-    acceptWSChecker: AcceptWSChecker
-    acceptSSEChecker: AcceptSSEChecker
+    _acceptWSChecker: AcceptWSChecker
+    _acceptSSEChecker: AcceptSSEChecker
     _state: HTTPConnectionState
-    onWebsocketEstablishment: Optional[Callable[[Any], None]]
-    onSSEEstablishment: Optional[Callable[[Any], None]]
+    # Change these two if you want, called with self and the source request as the arguments
+    onWebsocketEstablishment: Optional[Callable[[Self, HTTPRequest], None]]
+    onSSEEstablishment: Optional[Callable[[Self, HTTPRequest], None]]
     wsConn: Optional[WSConnection]
     sseConn: Optional[SSEConnection]
 
     def init(self):
         self._state = HTTPConnectionState.HTTP
-        self.acceptWSChecker = returnFalse
-        self.acceptSSEChecker = returnFalse
-        self.onWebsocketEstablishment = None  # Change if wanted, called with self as the argument
-        self.onSSEEstablishment = None  # Change if wanted, called with self as the argument
+        self._acceptWSChecker = returnFalse
+        self._acceptSSEChecker = returnFalse
+        self.onWebsocketEstablishment = None
+        self.onSSEEstablishment = None
         self.wsConn = None
         self.sseConn = None
 
     def _denyWebsocketConnection(self, notAllowedOrInvalid: bool):
         if notAllowedOrInvalid:
-            resp: HTTPResponse = HTTPResponse(400, "Invalid protocol selected", HTTPHeaders(), b'')
+            resp: HTTPResponse = HTTPResponse(403, "Invalid protocol selected", HTTPHeaders(), b'')
         else:
-            resp: HTTPResponse = HTTPResponse(400, "Bad request", HTTPHeaders(),
+            resp: HTTPResponse = HTTPResponse(426, "Upgrade Required", HTTPHeaders(),
                                               b'Invalid key header or version != 13 selected')
         self.sendData(resp)
         self.close(WebSocketNotAllowed())
+
+    def _denySSEConnection(self):
+        resp: HTTPResponse = HTTPResponse(406, "Not Acceptable", HTTPHeaders(), b'')
+        self.sendData(resp)
+        self.close(ServerSentEventsNotAllowed())
 
     def onDataInner(self, data: HTTPRequest | WSMessage | SSEMessage,
                     stoppedUnpacking: bool = False,
@@ -111,7 +117,7 @@ class HTTPServerConnection(ProtocolConnection):
         if self.didNotUpgrade and not self.didUpgradeToWS:
             if (data.headers.get("Upgrade") == "websocket" and
                     data.headers.get("Connection") == "Upgrade"):
-                if not self.acceptWSChecker(self, data):
+                if not self._acceptWSChecker(self, data):
                     # Cancel the connection if we aren't allowed to establish a WS connection
                     self._denyWebsocketConnection(True)
                     return False
@@ -135,11 +141,15 @@ class HTTPServerConnection(ProtocolConnection):
                 self.wsConn = WSConnection(("", 0), [], neverCall, self.sock)
                 self._state = HTTPConnectionState.WS
                 if self.onWebsocketEstablishment:
-                    self.onWebsocketEstablishment(self)
+                    self.onWebsocketEstablishment(self, data)
                 return False  # Don't call the onData with the WS request
         if self.didNotUpgrade and not self.didUpgradeToSSE:
             if (data.headers.get("Accept") == "text/event-stream" and
                     data.headers.get("Connection") == "keep-alive"):
+                if not self._acceptSSEChecker(self, data):
+                    # Cancel the connection if we aren't allowed to establish an SSE connection
+                    self._denySSEConnection()
+                    return False
                 headers: HTTPHeaders = HTTPHeaders()
                 headers["Content-Type"] = "text/event-stream"
                 headers["X-Omit-Content-Length"] = "1"
@@ -151,15 +161,15 @@ class HTTPServerConnection(ProtocolConnection):
                 self.sseConn = SSEConnection(("", 0), [], neverCall, self.sock)
                 self._state = HTTPConnectionState.SSE
                 if self.onSSEEstablishment:
-                    self.onSSEEstablishment(self)
-                return False  # Don't call the onData with the WS request
+                    self.onSSEEstablishment(self, data)
+                return False  # Don't call the onData with the SSE request
         return True
 
     def acceptWebsocket(self, acceptWSChecker: AcceptWSChecker):
-        self.acceptWSChecker = acceptWSChecker
+        self._acceptWSChecker = acceptWSChecker
 
     def acceptServerSentEvents(self, acceptSSEChecker: AcceptSSEChecker):
-        self.acceptSSEChecker = acceptSSEChecker
+        self._acceptSSEChecker = acceptSSEChecker
 
     @property
     def didUpgradeToWS(self) -> bool:
