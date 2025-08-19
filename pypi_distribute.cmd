@@ -21,6 +21,7 @@ if %errorlevel%==2 goto real
 exit
 
 :real
+%PY_PATH%  -m twine check dist/*
 %PY_PATH%  -m twine upload --repository pypi --config-file %ROOT_PATH%\.pypirc dist/*
 goto end
 :test
