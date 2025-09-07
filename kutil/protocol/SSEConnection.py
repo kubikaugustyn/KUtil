@@ -15,8 +15,8 @@ class SSEProtocol(AbstractProtocol):
         msg = SSEMessage()
         try:
             msg.read(buff)
-        except Exception:
-            raise NeedMoreDataError
+        except BaseException as e:
+            raise NeedMoreDataError from e
         return msg
 
     def unpackSubProtocol(self, buff: ByteBuffer) -> ByteBuffer:

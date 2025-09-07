@@ -10,7 +10,7 @@ from hashlib import sha1
 from typing import Any, Optional
 
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError
-from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.ByteBuffer import ByteBuffer, OutOfBoundsReadError
 from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 from kutil.protocol.ProtocolConnection import ProtocolConnection, ConnectionClosed
 from kutil.protocol.WS import WSMessage, WSOpcode, WSData
@@ -24,8 +24,8 @@ class WSProtocol(AbstractProtocol):
         msg = WSMessage()
         try:
             msg.read(buff)
-        except Exception:
-            raise NeedMoreDataError
+        except BaseException as e:
+            raise NeedMoreDataError from e
         return msg
 
     def unpackSubProtocol(self, buff: ByteBuffer) -> ByteBuffer:
@@ -48,7 +48,7 @@ class WSProtocol(AbstractProtocol):
 
     @staticmethod
     def createAcceptHeader(key: str) -> str:
-        acceptHash: sha1 = sha1()
+        acceptHash = sha1()
         acceptHash.update(key.encode("utf-8"))
         acceptHash.update(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
         return b64encode(acceptHash.digest()).decode("utf-8")
@@ -67,6 +67,7 @@ class WSConnection(ProtocolConnection):
             if data.isFin:
                 message: WSData = WSData(self.dataBuffer.export())
                 message.isBinary = data.opcode == WSOpcode.BINARY_FRAME
+                self.dataBuffer.reset() # Clear it, so it can accept a new message (issue #8)
                 return message
             return False
         if data.opcode == WSOpcode.CONNECTION_CLOSE:
