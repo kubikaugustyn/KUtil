@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from socket import socket, AF_INET, SOCK_STREAM
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_RCVBUF,SO_SNDBUF
 from typing import Callable, Any, Optional
 
 from kutil.typing_help import neverCall
@@ -26,6 +26,8 @@ class ProtocolServer:
     def __init__(self, address: tuple[str, int], layersGetter: LayersGetter,
                  onConnection: OnConnectionListener):
         self.sock = socket(AF_INET, SOCK_STREAM)
+        self.sock.setsockopt(SOL_SOCKET, SO_RCVBUF, 5 * 1024 * 1024) # 5 MB max
+        self.sock.setsockopt(SOL_SOCKET, SO_SNDBUF, 5 * 1024 * 1024) # 5 MB max
         self.layersGetter = layersGetter
         self.onConnection = onConnection
         self.closed = True
@@ -55,7 +57,8 @@ class ProtocolServer:
             self.connections.append(connection)
             connection.startRecv()
 
-    def __onConnectionClose(self, connection: ProtocolConnection, cause: Optional[Exception]) -> None:
+    def __onConnectionClose(self, connection: ProtocolConnection,
+                            cause: Optional[Exception]) -> None:
         if connection not in self.connections:
             return
         self.connections.remove(connection)

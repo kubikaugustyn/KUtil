@@ -3,6 +3,13 @@ __author__ = "kubik.augustyn@post.cz"
 
 from threading import Thread
 from time import time
+from typing import cast
+
+from kutil.buffer.AppendedByteBuffer import AppendedByteBuffer
+
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
+
+from kutil.io.file import bCRLF
 
 from kutil.protocol.HTTP import HTTPRequest, HTTPResponse, HTTPHeaders, HTTPThing
 from kutil.protocol.WS import WSData
@@ -11,7 +18,8 @@ from kutil import HTTPServer, HTTPServerConnection, ProtocolConnection, readFile
 
 index_page = b"""<h1>HTTP server test</h1>
 <a href="/test-ws">Test websocket (WS)</a><br>
-<a href="/test-sse">Test server sent events (SSE)</a>"""
+<a href="/test-sse">Test server sent events (SSE)</a><br>
+<a href="/big-file" download="big-file.txt">Download a big file</a>"""
 ws_test_page = readFile("websocket_server.html", "bytes")
 sse_test_page = readFile("sse_server.html", "bytes")
 
@@ -69,6 +77,12 @@ def onData(conn: HTTPServerConnection, data: HTTPRequest | WSData | SSEMessage):
         resp.body = ws_test_page
     elif req.requestURI == "/test-sse":
         resp.body = sse_test_page
+    elif req.requestURI == "/big-file":
+        resp.headers["Content-Type"] = "text/plain"
+        # Roughly 42 MB * 100 = 4.2 GB
+        line: bytes = b'This is a single line of a very big file' + bCRLF
+        lorem = MemoryByteBuffer(line * 1024 * 1024)
+        resp.body = cast(bytes, AppendedByteBuffer([lorem] * 100))
     conn.sendData(resp)
     conn.close()
     # print("Close connection.")
@@ -106,7 +120,8 @@ if __name__ == '__main__':
     # Localhost makes it veeery slow to load in Chrome on Windows 10, fixed by using the IP in Chrome instead of localhost.
     # The address here doesn't matter, it's just for the sake of the printing.
     # addr = ("localhost", 666)
-    addr = ("127.0.0.1", 666)
+    # addr = ("127.0.0.1", 666)
+    addr = ("0.0.0.0", 666)
     server: HTTPServer = HTTPServer(addr, onConnection)
     server.acceptWebsocket(acceptWebSocket)
     server.acceptServerSentEvents(acceptSSE)

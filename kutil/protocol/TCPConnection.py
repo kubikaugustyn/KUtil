@@ -7,7 +7,7 @@ from kutil.buffer.ByteBuffer import ByteBuffer
 from kutil.protocol.AbstractProtocol import AbstractProtocol
 from kutil.protocol.ProtocolConnection import ProtocolConnection
 
-type OnTCPDataListener = Callable[[bytes], None]
+type OnTCPDataListener = Callable[[ProtocolConnection, bytes], None]
 
 
 class TCPProtocol(AbstractProtocol):

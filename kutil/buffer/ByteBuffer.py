@@ -14,7 +14,7 @@ True
 """
 __author__ = "kubik.augustyn@post.cz"
 
-from typing import Iterable, Self, Optional, Iterator, Any, final
+from typing import Iterable, Self, Optional, Iterator, Any, final, Never, Final, cast
 from abc import ABC, abstractmethod
 
 try:
@@ -32,9 +32,13 @@ class OutOfBoundsUndoError(BaseException):
 
 
 class ByteBuffer[TData: Any](Iterable[int], ABC):
+    # If that limit is reached, ByteBuffer.appended() will use an AppendedByteBuffer.
+    APPENDED_BUFFER_THRESHOLD: Final[int] = 1024 * 1024 * 10  # 10 MB
+
     _data: TData
     _pointer: int
     _dataBuffer: Optional[object]  # DataBuffer
+    _destroyed: bool
 
     def __init__(self, data: TData):
         """
@@ -45,6 +49,7 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
         self._data = data
         self._pointer = 0
         self._dataBuffer = None
+        self._destroyed = False
 
     def __new__(cls, *args, **kwargs):
         if cls is ByteBuffer:
@@ -95,14 +100,19 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
         """
         ...
 
-    @abstractmethod
     def readLine(self, newLine: bytes = bCRLF) -> bytearray:
         """
         Reads the next bytes from the buffer at the pointer to a new line.
+
+        Can be overwritten, but calling `super().readLine(newLine)` is recommended.
+
         :param newLine: The new line bytes to read until
         :return: The read line
         """
-        ...
+        amount: int = self.index(newLine)
+        data: bytearray = self.read(amount) if amount > 0 else bytearray()
+        self.skip(len(newLine))
+        return data
 
     @abstractmethod
     def index(self, seq: bytes) -> int:
@@ -114,23 +124,33 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
         """
         ...
 
-    @abstractmethod
     def skip(self, amount: int) -> Self:
         """
-        Skips the amount bytes of the buffer at the pointer.
+        Skips amount bytes of the buffer at the pointer.
+
+        Can be overwritten, but calling `super().skip(amount)` is recommended.
+
         :param amount: The amount to skip
         :return: Self to support chaining
         """
-        ...
+        assert amount > 0
+        self.assertHas(amount)
+        self._pointer += amount
+        return self
 
-    @abstractmethod
     def back(self, amount: int) -> Self:
         """
-        Goes back the amount bytes of the buffer from the pointer.
+        Goes back amount bytes of the buffer from the pointer.
+
+        Can be overwritten, but calling `super().back(amount)` is recommended.
+
         :param amount: The amount to go back by
         :return: Self to support chaining
         """
-        ...
+        assert amount > 0
+        self.assertHas(-amount)
+        self._pointer -= amount
+        return self
 
     @abstractmethod
     def fullLength(self) -> int:
@@ -175,7 +195,7 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
         ...
 
     @abstractmethod
-    def write(self, data: Iterable[int], i: int = -1) -> Self:
+    def write(self, data: Iterable[int] | Self, i: int = -1) -> Self:
         """
         Writes data at the end or a particular index of the buffer,
         not caring about the current pointer.
@@ -242,7 +262,7 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
                     f"Not enough bytes (reading {amount}, but {bytesLeft} are available)")
 
     @abstractmethod
-    def assertCanRead(self) -> None:
+    def assertCanRead(self) -> Never | None:
         """
         Checks if the buffer can be read from.
 
@@ -251,11 +271,21 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
         ...
 
     @abstractmethod
-    def assertCanWrite(self) -> None:
+    def assertCanWrite(self) -> Never | None:
         """
         Checks if the buffer can be written to.
 
         :exception UnsupportedOperation: If the buffer cannot be written to or seeked
+        """
+        ...
+
+    @abstractmethod
+    def assertCanBeConvertedToAppended(self) -> Never | None:
+        """
+        Checks if the buffer can be converted to an AppendedByteBuffer
+        by using the ByteBuffer.appended() method.
+
+        :exception UnsupportedOperation: If the buffer cannot be converted.
         """
         ...
 
@@ -308,6 +338,122 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
         assert isinstance(buffer, DataBuffer)
         self._dataBuffer = buffer
 
+    # Destruction
+    @final
+    def destroy(self) -> None:
+        if self._destroyed:
+            return
+        self._destroyed = True
+        self._destroyInner()
+        self._data = None
+
+    def __del__(self) -> None:
+        # Final resort
+        self.destroy()
+
+    @abstractmethod
+    def _destroyInner(self) -> None:
+        """
+        Destroys the ByteBuffer's data, e.g., closing a file handle.
+
+        Then, 'self._data' will be set to None automatically.
+        """
+        ...
+
+    @final
+    def assertNotDestroyed(self) -> Never | None:
+        """
+        Checks whether the buffer hasn't been destroyed.
+
+        Called from all methods that work with the buffer.
+
+        :exception UnsupportedOperation: If the buffer was destroyed.
+        """
+        if not self._destroyed:
+            return
+        from kutil.io.native_io_wrapper import UnsupportedOperation
+        raise UnsupportedOperation("The ByteBuffer has been destroyed. You cannot not use it now.")
+
+    @classmethod
+    @final
+    def appended(cls, buffers: list[Self], customThreshold: Optional[int] = None,
+                 allowExtendingInsteadOfAppending: bool = True) -> Self:
+        """
+        Appends two or more buffers together.
+
+        If there are exactly two buffers, and their total length is less than
+        the threshold, the second one will be written into the first one.
+
+        If there are more than two buffers, and the first buffer can be converted to an
+        AppendedByteBuffer (e.g., it is not an opened writable file), they will all be
+        appended and converted to an AppendedByteBuffer.
+
+        If that's not possible, the buffers will be appended one by one to the first buffer.
+
+        Usage example (not shown in the popup):
+        ```
+        def pack(buff: ByteBuffer) -> ByteBuffer:
+            buff.write(b'HTTP/1.1 200 OK\r\n')
+            buff.write(b'Content-Type: text/plain\r\n')
+            buff.write(b'Content-Length: ').write(str(self.body.fullLength()).encode('ascii')).write(b'\r\n')
+            buff.write(b'\r\n')
+            buff = ByteBuffer.appended([buff, self.body], customThreshold=10)
+            return buff
+        ```
+        If you cannot replace the buffer (e.g., your function does not return a buffer),
+        you must either provide an AppendedByteBuffer as the input buffer
+        or ignore appending buffers entirely.
+
+        :param buffers: The buffers to append.
+        :param customThreshold: The limit to the length of two buffers where it is possible to just join them.
+        :param allowExtendingInsteadOfAppending: Whether to allow extending the first buffer if of type AppendedByteBuffer instead of nesting it into another AppendedByteBuffer.
+        :return: The appended buffer. One of the input buffers may be returned. You must not modify the input buffers anymore.
+        """
+        from kutil.buffer.AppendedByteBuffer import AppendedByteBuffer
+        from kutil.io.native_io_wrapper import UnsupportedOperation
+
+        assert len(buffers) >= 2
+        assert all([isinstance(buff, ByteBuffer) for buff in buffers])
+        buffers: list[ByteBuffer] = cast(list[ByteBuffer], buffers)  # Fix type hints
+
+        threshold: int = cls.APPENDED_BUFFER_THRESHOLD
+        if customThreshold is not None:
+            threshold = customThreshold
+        assert isinstance(threshold, int) and threshold >= 0
+
+        if len(buffers) == 2 and sum([buff.fullLength() for buff in buffers]) < threshold:
+            buff: ByteBuffer = buffers[0]
+            buff.write(buffers[1].export())
+            return buff
+
+        try:
+            if allowExtendingInsteadOfAppending and isinstance(buffers[0], AppendedByteBuffer):
+                raise UnsupportedOperation()  # Force the extending below
+
+            buffers[0].assertCanBeConvertedToAppended()
+            return AppendedByteBuffer(buffers)
+        except UnsupportedOperation:
+            buff: ByteBuffer = buffers[0]
+
+            if allowExtendingInsteadOfAppending and isinstance(buff, AppendedByteBuffer):
+                for other in buffers[1:]:
+                    buff.write(other)
+            else:
+                for other in buffers[1:]:
+                    buff.write(other.export())
+
+            return buff
+
+    @final
+    @classmethod
+    def from_any(cls, source: Self | bytes) -> Self:
+        if isinstance(source, bytes):
+            from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
+            return MemoryByteBuffer(source)
+
+        assert isinstance(source, ByteBuffer)
+        return source
+
     def __str__(self) -> str:
         return repr(self)
 
@@ -320,4 +466,18 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
         """Iterates over all bytes of the buffer, ignoring and not mutating the pointer."""
         ...
 
+    def batched(self, maxBatchSize: int) -> Iterator[bytes]:
+        """
+        Iterates over all remaining bytes of the buffer, (starting at and) mutating the pointer.
 
+        Can be overwritten.
+
+        :param maxBatchSize: The maximum number of bytes to read and yield.
+        :return: The iterator.
+        """
+        self.assertNotDestroyed()
+        while True:
+            batch: int = min(maxBatchSize, self.leftLength())
+            if batch == 0:
+                break
+            yield self.read(batch)

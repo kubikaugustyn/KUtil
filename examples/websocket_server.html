@@ -19,7 +19,7 @@
     }
 
     async function test() {
-        var ws = new WebSocket("ws://localhost:666/ws")
+        var ws = new WebSocket(`ws://${document.location.host}/ws`)
         state("Connecting...")
         await new Promise((resolve, reject) => {
             ws.onerror = reject

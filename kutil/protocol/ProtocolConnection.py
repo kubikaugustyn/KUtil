@@ -1,9 +1,12 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from threading import Thread
+from threading import Thread, Lock
 from typing import Callable, Any, Optional, Self
-from socket import socket, AF_INET, SOCK_STREAM
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_RCVBUF, SO_SNDBUF
+
+from kutil.buffer.AppendedByteBuffer import AppendedByteBuffer
+
 from kutil.protocol.AbstractProtocol import AbstractProtocol, NeedMoreDataError, StopUnpacking
 from kutil.buffer.ByteBuffer import ByteBuffer
 from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
@@ -23,6 +26,7 @@ class ProtocolConnection:
     onData: OnDataListener
     onCloseListeners: list[OnCloseListener]
     receiverThread: Thread
+    sendingLock: Lock
     closed: bool
     sock: socket
 
@@ -33,6 +37,7 @@ class ProtocolConnection:
         self.onData = onData
         self.onCloseListeners = onClose if onClose is not None else []
         self.receiverThread = Thread(target=self.receive)
+        self.sendingLock = Lock()
         self.closed = False
         if sock is None:  # If we are a client connection
             self.connect(address)
@@ -54,6 +59,8 @@ class ProtocolConnection:
 
     def connect(self, address: tuple[str, int]):
         self.sock = socket(AF_INET, SOCK_STREAM)
+        self.sock.setsockopt(SOL_SOCKET, SO_RCVBUF, 5 * 1024 * 1024)  # 5 MB max
+        self.sock.setsockopt(SOL_SOCKET, SO_SNDBUF, 5 * 1024 * 1024)  # 5 MB max
         try:
             self.sock.connect(address)
         except TimeoutError as e:
@@ -151,7 +158,8 @@ class ProtocolConnection:
             assert isinstance(dataInner, bool) and dataInner is False
             return True
 
-    def sendData(self, data: Any, beginAtLayer: int = -1) -> bool:
+    def sendData(self, data: Any, beginAtLayer: int = -1, allowChunking: bool = True,
+                 chunkSize: int = 1024 * 1024 * 10) -> bool:
         if beginAtLayer == -1:
             beginAtLayer = len(self.layers) - 1
         if beginAtLayer < 0 or beginAtLayer >= len(self.layers):
@@ -161,17 +169,28 @@ class ProtocolConnection:
                              "(such as HTTPServerConnection). It may also happen when using "
                              "beginAtLayer incorrectly.")
         buff: ByteBuffer = MemoryByteBuffer()
+        if allowChunking:
+            # This will make it so that, for example, when you buff.write() a FileByteBuffer,
+            # it will not need to load the whole buffer to memory
+            buff = AppendedByteBuffer([buff])
         for i in range(beginAtLayer, 0, -1):
             if i == beginAtLayer:
                 self.layers[beginAtLayer].packData(data, buff)
             else:
                 self.layers[i].packSubProtocol(buff)
         try:
-            self.sock.sendall(buff.export())
+            with self.sendingLock:
+                if allowChunking:
+                    for chunk in buff.batched(chunkSize):  # Default is 10 MB
+                        self.sock.sendall(chunk)
+                else:
+                    self.sock.sendall(buff.export())
+            return True
         except OSError as e:
             self.close(e)
             return False
-        return True
+        finally:
+            buff.destroy()
 
     @property
     def ownConnection(self):

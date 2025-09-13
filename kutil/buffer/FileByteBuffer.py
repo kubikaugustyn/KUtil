@@ -1,12 +1,14 @@
 #  -*- coding: utf-8 -*-
 __author__ = "Jakub Augustýn <kubik.augustyn@post.cz>"
 
-from typing import Iterable, Self, Optional, BinaryIO, Iterator
+from typing import Iterable, Self, Optional, BinaryIO, Iterator, Never, Final
 
 from kutil.buffer.ByteBuffer import ByteBuffer, OutOfBoundsReadError, bCRLF
 
 
 class FileByteBuffer(ByteBuffer[BinaryIO]):
+    MAX_SAFE_INSERT: Final[int] = 1024 * 1024 * 1024 * 8 # 8 GB
+
     _data: BinaryIO
 
     def __init__(self, file: BinaryIO | None):
@@ -19,6 +21,7 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         super(FileByteBuffer, self).__init__(file if file is not None else BytesIO(b''))
 
     def _readInnerWithoutPointer(self, *, pointer: int, amount: int) -> bytes:
+        self.assertNotDestroyed()
         self.assertCanRead()
 
         self._syncPointer(pointer)
@@ -30,6 +33,7 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         return data
 
     def _readInner(self, *, amount: int) -> bytes:
+        self.assertNotDestroyed()
         self.assertHas(amount)
 
         data: bytes = self._readInnerWithoutPointer(pointer=self._pointer, amount=amount)
@@ -37,25 +41,23 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         return data
 
     def readByte(self) -> int:
+        self.assertNotDestroyed()
         return self._readInner(amount=1)[0]
 
     def readLastByte(self) -> int:
+        self.assertNotDestroyed()
         return self._readInnerWithoutPointer(pointer=-1, amount=1)[0]
 
     def read(self, amount: int) -> bytearray:
+        self.assertNotDestroyed()
         if amount == 0:
             return bytearray()
         elif amount < 0:
             raise ValueError("Cannot read a negative amount of bytes")
         return bytearray(self._readInner(amount=amount))
 
-    def readLine(self, newLine: bytes = bCRLF) -> bytearray:
-        amount: int = self.index(newLine)
-        data: bytearray = self.read(amount) if amount > 0 else bytearray()
-        self.skip(len(newLine))
-        return data
-
     def index(self, seq: bytes) -> int:
+        self.assertNotDestroyed()
         self.assertHas(len(seq))
 
         for ptr, i in enumerate(range(self.leftLength() - len(seq) + 1), start=self._pointer):
@@ -64,27 +66,18 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
                 return i
         raise IndexError
 
-    def skip(self, amount: int) -> Self:
-        assert amount > 0
-        self.assertHas(amount)
-        self._pointer += amount
-        return self
-
-    def back(self, amount: int) -> Self:
-        assert amount > 0
-        self.assertHas(-amount)
-        self._pointer -= amount
-        return self
-
     def fullLength(self) -> int:
+        self.assertNotDestroyed()
         self._syncPointer(-1)
         fileLen: int = self._data.tell()
         return fileLen
 
     def leftLength(self) -> int:
+        self.assertNotDestroyed()
         return self.fullLength() - self._pointer
 
     def readRest(self) -> bytearray:
+        self.assertNotDestroyed()
         if self.leftLength() == 0:
             return bytearray(0)
         self.assertHas(1)
@@ -106,6 +99,7 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
          If set to ``-1``, the pointer is set to EOF.
          Otherwise, the argument is used.
         """
+        self.assertNotDestroyed()
         from kutil.io.native_io_wrapper import SEEK_SET, SEEK_CUR, SEEK_END
         self.assertCanSeek()
 
@@ -138,6 +132,7 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         :param i: The index to write the data to.
          If -1, the data is written at the end of the file.
         """
+        self.assertNotDestroyed()
         self._syncPointer(i)
         if i == -1:
             dataAfter: bytes = bytes(0)
@@ -145,6 +140,10 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         # As by default, Python will overwrite the data,
         # and we want the same behavior as the ByteBuffer has - it inserts the data.
         else:
+            if self.fullLength() > self.MAX_SAFE_INSERT:
+                from kutil.io.native_io_wrapper import UnsupportedOperation
+                raise UnsupportedOperation("Insertion into a huge file not supported, "
+                                           "as it'll crash your PC, dummy!'")
             dataAfter: bytes = self._data.read()  # Until EOF
             self._syncPointer(i)
 
@@ -154,17 +153,21 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
             assert self._data.write(dataAfter) == len(dataAfter)
 
     def writeByte(self, byte: int, i: int = -1) -> Self:
+        self.assertNotDestroyed()
         self._writeInternal(data=[byte], i=i)
         return self
 
-    def write(self, data: Iterable[int], i: int = -1) -> Self:
+    def write(self, data: Iterable[int] | ByteBuffer, i: int = -1) -> Self:
+        self.assertNotDestroyed()
         self._writeInternal(data=data, i=i)
         return self
 
     def export(self) -> bytes:
+        self.assertNotDestroyed()
         return self._readInnerWithoutPointer(pointer=0, amount=self.fullLength())
 
     def reset(self, data: Optional[Iterable[int]] = None) -> Self:
+        self.assertNotDestroyed()
         self.resetPointer()
         self._syncPointer()  # self._pointer should be 0
         self._data.truncate(0)  # Clear all the file's contents
@@ -173,6 +176,7 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         return self
 
     def resetBeforePointer(self) -> Self:
+        self.assertNotDestroyed()
         # Read the data to leave intact
         dataLeft: bytes = self._readInnerWithoutPointer(pointer=self._pointer,
                                                         amount=self.leftLength())
@@ -187,18 +191,21 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         return self
 
     def resetPointer(self) -> Self:
+        self.assertNotDestroyed()
         self._pointer = 0
         self._syncPointer()
         return self
 
     def assertCanRead(self) -> None:
+        self.assertNotDestroyed()
         from kutil.io.native_io_wrapper import UnsupportedOperation
         self.assertCanSeek()
         if not self._data.readable():
             raise UnsupportedOperation(
-                "Cannot write to a non-readable file wrapped in a FileByteBuffer")
+                "Cannot read from a non-readable file wrapped in a FileByteBuffer")
 
     def assertCanWrite(self) -> None:
+        self.assertNotDestroyed()
         from kutil.io.native_io_wrapper import UnsupportedOperation
         self.assertCanSeek()
         if not self._data.writable():
@@ -209,8 +216,9 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         """
         Checks if the buffer can be seeked.
 
-        :exception UnsupportedOperation: If the buffer cannot be seeked
+        :exception UnsupportedOperation: If the buffer cannot be seeked.
         """
+        self.assertNotDestroyed()
         from kutil.io.native_io_wrapper import UnsupportedOperation
         if self._data.closed:
             raise UnsupportedOperation(
@@ -219,7 +227,22 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
             raise UnsupportedOperation(
                 "Cannot write to or read from a non-seekable file wrapped in a FileByteBuffer")
 
+    def assertCanBeConvertedToAppended(self) -> Never|None:
+        self.assertNotDestroyed()
+        from kutil.io.native_io_wrapper import UnsupportedOperation
+        try:
+            self.assertCanWrite()
+        except UnsupportedOperation:
+            return
+
+        # We can write, so we cannot be replaced with an AppendedByteBuffer
+        # This is because a FileByteBuffer may never be exported,
+        # but it's usually tied to a file.
+        raise UnsupportedOperation("Cannot convert a writeable file wrapped in a "
+                                   "FileByteBuffer to an AppendedByteBuffer")
+
     def copy(self) -> Self:
+        self.assertNotDestroyed()
         copyBuff = FileByteBuffer(None)  # Will create an in-memory buffer
         self.copyInto(copyBuff)
         return copyBuff
@@ -231,6 +254,7 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         :param other: The buffer to copy into
         :return: Self to support chaining
         """
+        self.assertNotDestroyed()
 
         # Copy the data 10MB at a time
         self._syncPointer(0)
@@ -245,12 +269,18 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
         other._pointer = self._pointer
         return self
 
+    def _destroyInner(self) -> None:
+        if not self._data.closed:
+            self._data.close()
+
     def __repr__(self) -> str:
+        self.assertNotDestroyed()
         return (f"FileByteBuffer(length={self.fullLength()}, bytes_left={self.leftLength()}, "
                 f"pointer={self._pointer}, file={repr(self._data)}), "
                 f"cached_DataBuffer={self._dataBuffer is not None})")
 
     def __iter__(self) -> Iterator[int]:
+        self.assertNotDestroyed()
         for byte in self.export():  # A lazy solution to re-use code
             yield byte
 
