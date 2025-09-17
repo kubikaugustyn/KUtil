@@ -8,9 +8,9 @@ if %errorlevel%==1 goto yes
 if %errorlevel%!=1 exit
 :yes
 
-cd %ROOT_PATH%\package
+rem WHAT'S THIS??? cd %ROOT_PATH%\package
 echo Working dir: %ROOT_PATH%
-echo Package dir: %ROOT_PATH%\package
+rem WHAT'S THIS??? echo Package dir: %ROOT_PATH%\package
 echo Python: %PY_PATH%
 
 %PY_PATH% -m build

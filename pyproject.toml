@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "KUtil-jakubaugustyn"
-version = "0.1.0" # 13. 9. 2025
+version = "0.1.1" # 17. 9. 2025
 authors = [
     { name = "Jakub Augustýn", email = "kubik.augustyn@post.cz" },
     { name = "Radek Augustýn", email = "raugustyn@post.cz" },
@@ -20,11 +20,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 #license = "MIT"
-license = { file = "LICENSE" }
+#license = { file = "LICENSE" }
+license-files = ["LICENSE"]
 # https://stackoverflow.com/a/73600610
 dynamic = ["dependencies"]
-[tool.setuptools]
-license-files = []
+#[tool.setuptools]
+#license-files = []
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 

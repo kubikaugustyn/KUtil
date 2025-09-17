@@ -38,15 +38,19 @@ ByteBuffer is a basic class, extending the functionality of a native `bytearray`
 safety and the ability to upgrade it to a DataBuffer.
 
 ```python
-# Import the class
-from kutil import ByteBuffer
-# OR
-from kutil.buffer.ByteBuffer import ByteBuffer
+# Import the class(es)
+from kutil import ByteBuffer, MemoryByteBuffer, FileByteBuffer, readFile
+# OR specifically:
+from kutil.buffer.MemoryByteBuffer import MemoryByteBuffer
 
 # Init the buffer:
-buff = ByteBuffer(b'input data')  # Creates a buffer with the data
+buff: ByteBuffer = MemoryByteBuffer(b'input data')  # Creates a buffer with the data
 # OR
-buff = ByteBuffer(10)  # Creates a buffer with 10 nulled bytes, keeping the reading pointer at 0
+buff: ByteBuffer = MemoryByteBuffer(10)  # Creates a buffer with 10 nulled bytes, keeping the reading pointer at 0
+# OR
+buff: ByteBuffer = FileByteBuffer(open("file.bin", "wb"))  # Creates a buffer wrapping a file handle (BinaryIO)
+# OR
+buff: ByteBuffer = readFile("file.bin", "buffer")  # The same functionality as above, but nicer
 
 # Write at the end of the buffer:
 buff.writeByte(69)  # Writes a single byte at the end of the buffer
@@ -73,6 +77,9 @@ buff.readLine()  # Reads the next line, omitting the newline bytes, but skipping
 buff.readRest()  # Reads all the bytes left in the buffer
 buff.resetPointer()  # Moves the pointer to the beginning (0)
 # and more...
+
+# And always remember to destroy the buffer when you're done with it, to prevent memory leaks, open file handles, etc.
+buff.destroy()
 ```
 
 ### DataBuffer
@@ -84,9 +91,9 @@ Note that every number is **big endian**!
 
 ```python
 # Import the class
-from kutil import DataBuffer
+from kutil import DataBuffer, ByteBuffer
 # OR
-from kutil.buffer.DataBuffer import DataBuffer
+from kutil.buffer.DataBuffer import DataBuffer, ByteBuffer
 
 # Init the buffer:
 dBuff = DataBuffer()  # Creates a blank data buffer
@@ -114,6 +121,40 @@ buff: ByteBuffer = dBuff.buff
 dBuff.reset()
 
 # For advanced functions, see the source code.
+```
+
+### AppendedByteBuffer
+
+AppendedByteBuffer is an advanced ByteBuffer that can be used to concatenate/append buffers. The buffers can't be
+modified (e.g., their length must not change), and you can add more to the AppendedByteBuffer by passing a ByteBuffer to
+the `ByteBuffer.write()` method. However, a better and cleaner way is to use
+`ByteBuffer.appended(buffers: Iterable[ByteBuffer], ...): ByteBuffer`, which can perform significant optimizations. This
+function can however only be used in cases where you can change the 'buff' reference (e.g., your function returns a
+ByteBuffer). If not, and you're only provided a ByteBuffer as an argument, you must use `buff.write(otherToAppend)` as
+described above,
+
+```python
+# Import the classes
+from kutil import ByteBuffer, MemoryByteBuffer, readFile, AppendedByteBuffer
+# OR specifically:
+from kutil.buffer.AppendedByteBuffer import AppendedByteBuffer
+
+# Init the buffers:
+buff1: ByteBuffer = MemoryByteBuffer(b'some header')  # Creates a buffer with some imaginary headers
+buff2: ByteBuffer = readFile("file.bin", "buffer")  # And the body
+
+# Now, append the buffers:
+buff: ByteBuffer = ByteBuffer.appended([buff1, buff2])  # Creates a buffer with the headers and the body
+print(buff.export())  # <<< some header + file contents
+
+
+# Or, if you can't change the 'buff' reference:
+def write(buff: ByteBuffer) -> None:
+    buff.write(buff1)
+    buff.write(buff2)
+
+# And always remember to destroy the buffer
+buff.destroy()
 ```
 
 ### Serializable
