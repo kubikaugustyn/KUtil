@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "KUtil-jakubaugustyn"
-version = "0.1.1" # 17. 9. 2025
+version = "0.1.3" # 28. 10. 2025
 authors = [
     { name = "Jakub Augustýn", email = "kubik.augustyn@post.cz" },
     { name = "Radek Augustýn", email = "raugustyn@post.cz" },
@@ -30,7 +30,9 @@ dynamic = ["dependencies"]
 dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.packages.find]
-where = ["kutil"]
+#where = ["kutil"] # This broke 5 fricking builds
+where = ["."]
+include = ["kutil", "kutil.*"]
 
 [project.urls]
 Homepage = "https://github.com/kubikaugustyn/KUtil"

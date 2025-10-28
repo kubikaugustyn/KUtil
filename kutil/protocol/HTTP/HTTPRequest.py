@@ -109,7 +109,7 @@ class HTTPRequest(HTTPThing):
         self.method = HTTPMethod(method)
         self.requestURI = self.dec(requestURI)
         if version != self.VERSION:
-            raise ValueError
+            raise ValueError(f"Unsupported HTTP version - supported {self.VERSION}, got {version}")
         self.readRest(buff)
 
     def __str__(self) -> str:
