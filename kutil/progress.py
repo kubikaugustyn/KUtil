@@ -9,8 +9,6 @@ import sys
 from enum import Enum, unique, auto
 from itertools import chain
 from threading import Thread, Lock
-import os
-from traceback import print_exception
 from typing import Never, Iterator
 
 import colorama
@@ -288,6 +286,15 @@ class ProgressBar:
                     raise RuntimeError("Cannot ProgressBar.update() when it isn't being shown")
                 self._progress = clamp(self._progress + delta, 0, self._maxProgress)
         self._wakeupProgressUpdaterThread()  # Schedule a render
+
+    def setProgress(self, newProgress: int) -> None:
+        self.update(newProgress - self.progress)
+
+    def resetProgress(self) -> None:
+        self.update(-self.progress)
+
+    def maxOutProgress(self) -> None:
+        self.update(self.maxProgress - self.progress)
 
     def _render(self, *, isTTY: bool = True) -> None:
         with self._lock:
