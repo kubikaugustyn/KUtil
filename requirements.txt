@@ -2,9 +2,9 @@ cryptography>=46.0.3
 certifi>=2025.10.5
 
 requests==2.*
-urllib3>=2.*
-typeguard>=4.*
-deprecation>=2.*
+urllib3==2.*
+typeguard==4.*
+deprecation==2.*
 
 frozenlist
 colorama
