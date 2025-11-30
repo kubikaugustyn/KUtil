@@ -18,9 +18,10 @@ class HTTPThing(Serializable):
     HEADER_SEP: Final[bytes] = b": "
 
     headers: HTTPHeaders
-    body: bytes
+    body: bytes | ByteBuffer
 
-    def __init__(self, headers: Optional[HTTPHeaders] = None, body: Optional[bytes] = None):
+    def __init__(self, headers: Optional[HTTPHeaders] = None,
+                 body: Optional[bytes | ByteBuffer] = None):
         self.headers = headers or {}
         self.body = body or b''
 

@@ -316,6 +316,7 @@ class MapyCZServer(WebScraperServer):
         r = self.getSession().get("https://api.mapy.cz/virtual-key.js")
         assert r.status_code == 200, f"Bad status code ({r.status_code}) - __scrape failed - API key obtaining"
         self.__cachedAPIKey = re.match('Loader\\.apiKey = "(\\S+)"', r.text).group(1)
+        print(f"Obtained API key: {self.__cachedAPIKey}")
         return self.__cachedAPIKey
 
     def __authorizedGetRequest(self, uri: str, force200: bool = True) -> requests.Response:
