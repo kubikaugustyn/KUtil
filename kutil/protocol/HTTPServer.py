@@ -116,7 +116,7 @@ class HTTPServerConnection(ProtocolConnection):
 
         if self.didNotUpgrade and not self.didUpgradeToWS:
             if (data.headers.get("Upgrade") == "websocket" and
-                    data.headers.get("Connection") == "Upgrade"):
+                    data.headers.get("Connection").capitalize() == "Upgrade"):
                 if not self._acceptWSChecker(self, data):
                     # Cancel the connection if we aren't allowed to establish a WS connection
                     self._denyWebsocketConnection(True)
@@ -145,7 +145,7 @@ class HTTPServerConnection(ProtocolConnection):
                 return False  # Don't call the onData with the WS request
         if self.didNotUpgrade and not self.didUpgradeToSSE:
             if (data.headers.get("Accept") == "text/event-stream" and
-                    data.headers.get("Connection") == "keep-alive"):
+                    data.headers.get("Connection").lower() == "keep-alive"):
                 if not self._acceptSSEChecker(self, data):
                     # Cancel the connection if we aren't allowed to establish an SSE connection
                     self._denySSEConnection()

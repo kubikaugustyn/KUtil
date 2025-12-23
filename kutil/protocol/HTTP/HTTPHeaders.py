@@ -1,32 +1,34 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
+from typing import Any
+
 
 # https://stackoverflow.com/questions/2082152/case-insensitive-dictionary
 class CaseInsensitiveKey(object):
     key: str
 
-    def __init__(self, key: str):
+    def __init__(self, key: str) -> None:
         self.key = key
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.key.lower())
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self.key.lower() == other.key.lower()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.key
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<CaseInsensitiveKey '{self.key}'>"
 
 
 class HTTPHeaders(dict[str, str]):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def __setitem__(self, key: str, value: str):
+    def __setitem__(self, key: str, value: str) -> None:
         key = CaseInsensitiveKey(key)
         super().__setitem__(key, value)
 
@@ -38,7 +40,7 @@ class HTTPHeaders(dict[str, str]):
         key = CaseInsensitiveKey(key)
         return super().__delitem__(key)
 
-    def get(self, key: str, default=None):
+    def get[T: Any](self, key: str, default: T = None) -> str | T:
         key = CaseInsensitiveKey(key)
         if key not in self:
             return default
