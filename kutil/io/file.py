@@ -42,8 +42,9 @@ def readFile(path: str, output: OUTPUT_STR = "text", encoding: str = "utf-8") ->
         if output == "json":
             return json.load(f)
         elif output == "buffer":
-            f = None # Prevent closing the file, as that would make the buffer useless
-            return FileByteBuffer(f)
+            buff: ByteBuffer = FileByteBuffer(f)
+            f = None  # Prevent closing the file, as that would make the buffer useless
+            return buff
 
         # Non-streamable stuff
         content = f.read()
