@@ -2,7 +2,8 @@
 __author__ = "kubik.augustyn@post.cz"
 
 from enum import Enum, unique
-from kutil import ByteBuffer
+
+from kutil.buffer.ByteBuffer import ByteBuffer, ByteBufferLike
 from kutil.buffer.Serializable import Serializable
 
 
@@ -18,26 +19,28 @@ class WSOpcode(Enum):
 
 class WSData:
     isBinary: bool
-    __raw: bytes
+    __raw: ByteBufferLike
 
-    def __init__(self, data: bytes | bytearray | str | None = None):
+    def __init__(self, data: ByteBufferLike | str | None = None):
         if data is None:
             data = b''
-        self.isBinary = isinstance(data, bytes) or isinstance(data, bytearray)
+        self.isBinary = not isinstance(data, str)
         if self.isBinary:
             self.raw = bytes(data)
         else:
             self.text = data
 
     @property
-    def superSecretRawAccess(self) -> bytes:
-        """Lol. Just don't use this if you don't know what are you doing."""
+    def superSecretRawAccess(self) -> ByteBufferLike:
+        """Lol. Just don't use this if you don't know what you are doing."""
         return self.__raw
 
     @property
     def raw(self) -> bytes:
         assert self.isBinary
-        return self.__raw
+        if isinstance(self.__raw, ByteBuffer):
+            return self.__raw.export()
+        return bytes(self.__raw)
 
     @raw.setter
     def raw(self, newBytes: bytes):
@@ -47,7 +50,7 @@ class WSData:
     @property
     def text(self) -> str:
         assert not self.isBinary
-        return self.__raw.decode("utf-8")
+        return bytes(self.__raw).decode("utf-8")
 
     @text.setter
     def text(self, newText: str):

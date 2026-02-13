@@ -126,8 +126,7 @@ class MemoryByteBuffer(ByteBuffer[bytearray]):
 
     def __iter__(self) -> Iterator[int]:
         self.assertNotDestroyed()
-        for byte in self._data:
-            yield byte
+        return iter(self._data)
 
 
 __all__ = ["MemoryByteBuffer"]

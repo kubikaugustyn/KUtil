@@ -14,7 +14,8 @@ True
 """
 __author__ = "kubik.augustyn@post.cz"
 
-from typing import Iterable, Self, Optional, Iterator, Any, final, Never, Final, cast
+from typing import Iterable, Self, Optional, Iterator, Any, final, Never, Final, cast, Sized, \
+    Protocol
 from abc import ABC, abstractmethod
 
 try:
@@ -31,7 +32,10 @@ class OutOfBoundsUndoError(BaseException):
     pass
 
 
-class ByteBuffer[TData: Any](Iterable[int], ABC):
+class ByteBufferLike(Iterable[int], Sized, Protocol): ...
+
+
+class ByteBuffer[TData: Any](ByteBufferLike, ABC):
     # If that limit is reached, ByteBuffer.appended() will use an AppendedByteBuffer.
     APPENDED_BUFFER_THRESHOLD: Final[int] = 1024 * 1024 * 10  # 10 MB
 
@@ -195,7 +199,7 @@ class ByteBuffer[TData: Any](Iterable[int], ABC):
         ...
 
     @abstractmethod
-    def write(self, data: Iterable[int] | Self, i: int = -1) -> Self:
+    def write(self, data: ByteBufferLike | Self, i: int = -1) -> Self:
         """
         Writes data at the end or a particular index of the buffer,
         not caring about the current pointer.

@@ -82,7 +82,7 @@ def onData(conn: HTTPServerConnection, data: HTTPRequest | WSData | SSEMessage):
         # Roughly 42 MB * 100 = 4.2 GB
         line: bytes = b'This is a single line of a very big file' + bCRLF
         lorem = MemoryByteBuffer(line * 1024 * 1024)
-        resp.body = cast(bytes, AppendedByteBuffer([lorem] * 100))
+        resp.body = AppendedByteBuffer([lorem] * 100)
     conn.sendData(resp)
     conn.close()
     # print("Close connection.")

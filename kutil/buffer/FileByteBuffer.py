@@ -7,7 +7,7 @@ from kutil.buffer.ByteBuffer import ByteBuffer, OutOfBoundsReadError, bCRLF
 
 
 class FileByteBuffer(ByteBuffer[BinaryIO]):
-    MAX_SAFE_INSERT: Final[int] = 1024 * 1024 * 1024 * 8 # 8 GB
+    MAX_SAFE_INSERT: Final[int] = 1024 * 1024 * 1024 * 8  # 8 GB
 
     _data: BinaryIO
 
@@ -227,7 +227,7 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
             raise UnsupportedOperation(
                 "Cannot write to or read from a non-seekable file wrapped in a FileByteBuffer")
 
-    def assertCanBeConvertedToAppended(self) -> Never|None:
+    def assertCanBeConvertedToAppended(self) -> Never | None:
         self.assertNotDestroyed()
         from kutil.io.native_io_wrapper import UnsupportedOperation
         try:
@@ -281,8 +281,7 @@ class FileByteBuffer(ByteBuffer[BinaryIO]):
 
     def __iter__(self) -> Iterator[int]:
         self.assertNotDestroyed()
-        for byte in self.export():  # A lazy solution to re-use code
-            yield byte
+        return iter(self.export())  # A lazy solution to re-use code
 
 
 __all__ = ["FileByteBuffer"]

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "KUtil-jakubaugustyn"
-version = "0.1.7" # 7. 2. 2026
+version = "0.1.8" # 13. 2. 2026
 authors = [
     { name = "Jakub Augustýn", email = "kubik.augustyn@post.cz" },
     { name = "Radek Augustýn", email = "raugustyn@post.cz" },

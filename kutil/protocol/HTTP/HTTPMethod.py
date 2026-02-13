@@ -5,7 +5,7 @@ from enum import Enum, unique
 
 
 @unique
-class HTTPMethod(Enum):
+class HTTPMethod(bytes, Enum):
     OPTIONS = b"OPTIONS"
     GET = b"GET"
     HEAD = b"HEAD"
