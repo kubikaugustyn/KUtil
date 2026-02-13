@@ -76,6 +76,9 @@ class ProtocolConnection:
         self.layers = self.layers[:self.layers.index(protocol)]
 
     def close(self, cause: Optional[Exception] = None):
+        if self.closed:
+            return
+
         self.closed = True
         # try:
         self.sock.close()
