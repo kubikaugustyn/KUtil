@@ -26,7 +26,7 @@ class WSData:
             data = b''
         self.isBinary = not isinstance(data, str)
         if self.isBinary:
-            self.raw = bytes(data)
+            self.raw = data
         else:
             self.text = data
 
@@ -43,7 +43,7 @@ class WSData:
         return bytes(self.__raw)
 
     @raw.setter
-    def raw(self, newBytes: bytes):
+    def raw(self, newBytes: ByteBufferLike):
         assert self.isBinary
         self.__raw = newBytes
 
