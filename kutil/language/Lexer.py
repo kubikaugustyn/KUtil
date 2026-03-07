@@ -17,7 +17,7 @@ class Lexer(ABC):
             output.setIterator(iterator)
             return output
         except Exception as e:
-            raise LexerError(e)
+            raise LexerError(e) from None
 
     @abstractmethod
     def tokenizeInner(self, inputCode: str, options: Options, output: TokenOutput) \

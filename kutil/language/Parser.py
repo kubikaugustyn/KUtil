@@ -16,7 +16,7 @@ class Parser(ABC):
         try:
             return self.parseInner(tokens, options)
         except Exception as e:
-            raise ParserError(e)
+            raise ParserError(e) from None
 
     @abstractmethod
     def parseInner(self, tokens: TokenOutput, options: Options) -> AST:
