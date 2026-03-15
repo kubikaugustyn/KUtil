@@ -15,24 +15,23 @@ def enumFiles(path: str, extendedInfo: Literal[True]) -> Iterator[tuple[str, str
 def enumFiles(path: str, extendedInfo: Literal[False]) -> Iterator[tuple[str, str]]: ...
 
 
-def enumFiles(path: str, extendedInfo: bool) -> Iterator[
-    tuple[str, str] | tuple[str, str, os.DirEntry]]:
-    """Returns an iterator, that yields file name, file path and (optionally, if extendedInfo=True) os.DirEntry.
+def enumFiles(path: str, extendedInfo: bool) -> \
+        Iterator[tuple[str, str] | tuple[str, str, os.DirEntry]]:
+    """
+    Returns an iterator that yields a file name, file path, and (optionally, if extendedInfo=True) os.DirEntry.
     :param path: Path of the directory
     :param extendedInfo: Whether you want extended info about the files
-    :return: An iterator yielding file name, file path and (optionally, if extendedInfo=True) os.DirEntry
+    :return: An iterator yielding a file name, file path, and (optionally, if extendedInfo=True) os.DirEntry
     """
-    dirIter = os.scandir(path) if extendedInfo else os.listdir(path)
-    for dirEntryOrFN in dirIter:
-        if extendedInfo:  # Yield name, path, os.DirEntry
-            if os.path.isdir(dirEntryOrFN.path):
+    with os.scandir(path) as iterator:
+        for dirEntry in iterator:
+            if not dirEntry.is_file():
                 continue
-            yield dirEntryOrFN.name, dirEntryOrFN.path, dirEntryOrFN
-        else:  # Yield name, path
-            fullPath = os.path.join(path, dirEntryOrFN)
-            if os.path.isdir(fullPath):
-                continue
-            yield dirEntryOrFN, fullPath
+
+            if extendedInfo:  # Yield name, path, os.DirEntry
+                yield dirEntry.name, dirEntry.path, dirEntry
+            else:  # Yield name, path
+                yield dirEntry.name, dirEntry.path
 
 
 @overload
@@ -43,25 +42,23 @@ def enumDirs(path: str, extendedInfo: Literal[True]) -> Iterator[tuple[str, str,
 def enumDirs(path: str, extendedInfo: Literal[False]) -> Iterator[tuple[str, str]]: ...
 
 
-def enumDirs(path: str, extendedInfo: bool) -> Iterator[
-    tuple[str, str] | tuple[str, str, os.DirEntry]]:
-    """Returns an iterator, that yields subdirectory name, subdirectory path and
-    (optionally, if extendedInfo=True) os.DirEntry.
+def enumDirs(path: str, extendedInfo: bool) -> \
+        Iterator[tuple[str, str] | tuple[str, str, os.DirEntry]]:
+    """
+    Returns an iterator that yields a subdirectory name, subdirectory path, and (optionally, if extendedInfo=True) os.DirEntry.
     :param path: Path of the directory
     :param extendedInfo: Whether you want extended info about the subdirectories
-    :return: An iterator yielding subdirectory name, subdirectory path and (optionally, if extendedInfo=True) os.DirEntry
+    :return: An iterator yielding a subdirectory name, subdirectory path, and (optionally, if extendedInfo=True) os.DirEntry
     """
-    dirIter = os.scandir(path) if extendedInfo else os.listdir(path)
-    for dirEntryOrFN in dirIter:
-        if extendedInfo:  # Yield name, path, os.DirEntry
-            if os.path.isfile(dirEntryOrFN.path):
+    with os.scandir(path) as iterator:
+        for dirEntry in iterator:
+            if not dirEntry.is_dir():
                 continue
-            yield dirEntryOrFN.name, dirEntryOrFN.path, dirEntryOrFN
-        else:  # Yield name, path
-            fullPath = os.path.join(path, dirEntryOrFN)
-            if os.path.isfile(fullPath):
-                continue
-            yield dirEntryOrFN, fullPath
+
+            if extendedInfo:  # Yield name, path, os.DirEntry
+                yield dirEntry.name, dirEntry.path, dirEntry
+            else:  # Yield name, path
+                yield dirEntry.name, dirEntry.path
 
 
 def getDirParent(path: str) -> str:
