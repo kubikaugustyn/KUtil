@@ -104,6 +104,8 @@ class ProgressBar:
 
     @classmethod
     def _progressUpdaterThread(cls) -> None:
+        from time import perf_counter, sleep
+
         isTTY: bool = sys.stdout.isatty()
         try:
             while True:
@@ -186,8 +188,14 @@ class ProgressBar:
                                 print(" ".join(parts), end="")
                         print(end="", flush=True)
 
-                    # That's the delay between renders, so the prefix is always changing
-                    cls._updaterThreadWaiter.wait(0.1)
+                    # The 100 ms is the delay between renders, so the prefix is always changing
+                    renderDelay: float = 0.1
+                    sTime = perf_counter()
+                    cls._updaterThreadWaiter.wait(renderDelay)
+                    eTime = perf_counter()
+                    missingTime: float = clamp(renderDelay - eTime + sTime, 0, renderDelay)
+                    if missingTime > 0.001:
+                        sleep(missingTime)
 
                 if not shouldDoRenders:
                     break
