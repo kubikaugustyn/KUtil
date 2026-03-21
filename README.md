@@ -153,6 +153,7 @@ def write(buff: ByteBuffer) -> None:
     buff.write(buff1)
     buff.write(buff2)
 
+
 # And always remember to destroy the buffer
 buff.destroy()
 ```
@@ -265,6 +266,11 @@ for i in rangeFloat(1, -1, step="-.5", toFloat=True):
 ```
 
 ## kutil.progress
+
+> The KUtil progress bars are being deprecated. Consider using [
+`rich`](https://github.com/Textualize/rich?tab=readme-ov-file#rich-library)'
+> s [progress bars](https://rich.readthedocs.io/en/latest/progress.html)
+> or [status](https://rich.readthedocs.io/en/latest/reference/console.html#rich.console.Console.status).
 
 The `kutil.progress` module serves as a collection of progress bar printing helpers.
 For now, it only contains a ProgressBar class and a progress factory.
