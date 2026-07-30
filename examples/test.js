@@ -19,3 +19,6 @@ const thing2 = a => console.log("Hello", a)
 function hello(a) {
     // Some  massive code that would take long to parse
 }
+
+let module = import('./module') // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
+const d = import.meta.url // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta

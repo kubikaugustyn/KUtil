@@ -580,7 +580,7 @@ class JSParser(OneUseParser):
         node = self.createNode()
 
         typ = self.lookahead.kind
-        if typ is JSToken.Identifier:
+        if typ is JSToken.Identifier or self.matchKeyword('import'):
             if ((self.context.isModule or self.context.allowAwait) and
                     self.lookahead.content == 'await'):
                 self.tolerateUnexpectedToken(self.lookahead)
