@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 import json
 from abc import abstractmethod, ABC
-from typing import Literal as TypingLiteral, Any, Self, Optional
+from typing import Literal as TypingLiteral, Any, Self, Optional, cast
 
 from kutil import NL
 from .character import TABULATOR
@@ -99,10 +99,10 @@ class ArrayExpression(StaticNode):
             result: str = "[" + NL
 
         for i, elemI in enumerate(self.elements):
-            elem = ast.getNode(elemI)
-            assert isinstance(elem, Node)
-
-            result += elem.toString(ast, offset + TABULATOR, True)
+            if elemI is not None:
+                elem = ast.getNode(elemI)
+                assert isinstance(elem, Node)
+                result += elem.toString(ast, offset + TABULATOR, True)
 
             if i != len(self.elements) - 1:
                 result += ","
@@ -146,8 +146,13 @@ class ArrowFunctionExpression(Node):
         paramsMap = map(lambda x: getAstNode(ast, x).toString(ast, offset + TABULATOR, False),
                         self.params)
         params: str = ', '.join(paramsMap)
-        body: str = getAstNode(ast, self.body).toString(ast, offset + TABULATOR,
-                                                        False) if self.body else ""
+        if self.body is None:
+            body: str = ""
+        else:
+            bodyNode: Node = getAstNode(ast, self.body)
+            body: str = bodyNode.toString(ast, offset + TABULATOR, False)
+            if isinstance(bodyNode, ObjectExpression):
+                body = f"({body})"
 
         start = f"{offset if startOffset else ''}{'async ' if self.isAsync else ''}({params}) => "
         return start + body
@@ -161,9 +166,13 @@ class AssignmentExpression(Node):
         self.right = right
 
     def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
+        # reinterpretExpressionAsPattern() changes the type and deletes the operator
+        # This toString() is also reused below
+        operator: str = self.operator if self.type is JSNode.AssignmentExpression else "="
+
         left = getAstNode(ast, self.left).toString(ast, offset + TABULATOR, False)
         right = getAstNode(ast, self.right).toString(ast, offset + TABULATOR, False)
-        return f"{offset if startOffset else ''}{left} {self.operator} {right}"
+        return f"{offset if startOffset else ''}{left} {operator} {right}"
 
 
 class AssignmentPattern(Node):
@@ -171,6 +180,10 @@ class AssignmentPattern(Node):
         super().__init__(JSNode.AssignmentPattern, (left, right))
         self.left = left
         self.right = right
+
+    def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
+        expr: AssignmentExpression = cast(AssignmentExpression, self)
+        return AssignmentExpression.toString(expr, ast, offset, startOffset)
 
 
 class AsyncArrowFunctionExpression(ArrowFunctionExpression):
@@ -189,14 +202,19 @@ class FunctionDeclaration(Node):
         self.body = body
         self.generator = generator
 
-    def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
+    def toString(self, ast: AST, offset: str = "", startOffset: bool = True, hideFunctionKeyword: bool = False) -> str:
         name: str = getAstNode(ast, self.id).toString(ast, offset + TABULATOR,
                                                       False) if self.id else ""
         paramsMap = map(lambda x: getAstNode(ast, x).toString(ast, offset + TABULATOR, False),
                         self.params)
         params: str = ', '.join(paramsMap)
         body: str = getAstNode(ast, self.body).toString(ast, offset, False) if self.body else ""
-        startLine = f"{offset if startOffset else ''}{'async ' if self.isAsync else ''}function {name}({params}) "
+        startLine = (f"{offset if startOffset else ''}"
+                     f"{'async ' if self.isAsync else ''}"
+                     f"{'' if hideFunctionKeyword else 'function'}"
+                     f"{'*' if self.generator else ''}"
+                     f"{'' if hideFunctionKeyword else ' '}"
+                     f"{name}({params}) ")
         return startLine + body
 
 
@@ -209,14 +227,15 @@ class FunctionExpression(FunctionDeclaration):
 
 
 class AsyncFunctionDeclaration(FunctionDeclaration):
-    def __init__(self, id, params, body):
+    def __init__(self, id, params, body, _: bool = False):
+        assert _ is False
         super().__init__(id, params, body, False)
         self.isAsync = True
 
 
 class AsyncFunctionExpression(AsyncFunctionDeclaration):
-    def __init__(self, id, params, body):
-        super().__init__(id, params, body)
+    def __init__(self, id, params, body, _: bool = False):
+        super().__init__(id, params, body, _)
         self.type = JSNode.FunctionExpression
 
 
@@ -232,7 +251,7 @@ class AwaitExpression(Node):
 
 class BinaryExpression(Node):
     # TODO Surrounding with () is optional - get all required types
-    surroundedNodes: set[JSNode] = {JSNode.UpdateExpression}
+    surroundedNodes: set[JSNode] = {JSNode.UpdateExpression, JSNode.AssignmentExpression}
 
     operator: str
     left: int
@@ -247,7 +266,7 @@ class BinaryExpression(Node):
             # https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-relational-operators
             # Maybe more?
             kind = JSNode.BinaryExpression
-        super().__init__(kind, (left, right))
+        super().__init__(kind, (operator, left, right))
         self.operator = operator
         self.left = left
         self.right = right
@@ -260,7 +279,7 @@ class BinaryExpression(Node):
         rightStr: str = right.toString(ast, offset, False)
 
         surroundLeft: bool = left.type in BinaryExpression.surroundedNodes
-        surroundRight: bool = left.type in BinaryExpression.surroundedNodes
+        surroundRight: bool = right.type in BinaryExpression.surroundedNodes
 
         if surroundLeft:
             leftStr = f"({leftStr})"
@@ -370,17 +389,18 @@ class ClassExpression(Node):
 
 class ComputedMemberExpression(Node):
     # object[property]
-    def __init__(self, object, property):
-        super().__init__(JSNode.MemberExpression, (object, property))
+    def __init__(self, object, property, optionalChain: bool):
+        super().__init__(JSNode.MemberExpression, (object, property, optionalChain))
         self.computed = True
         self.object = object
         self.property = property
+        self.optionalChain = optionalChain
 
     def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
         assert self.computed
         objectStr = getAstNode(ast, self.object).toString(ast, offset, False)
         propertyStr = getAstNode(ast, self.property).toString(ast, offset, False)
-        return f"{offset if startOffset else ''}{objectStr}[{propertyStr}]"
+        return f"{offset if startOffset else ''}{objectStr}{'?.' if self.optionalChain else ''}[{propertyStr}]"
 
 
 class ConditionalExpression(Node):
@@ -406,6 +426,10 @@ class ContinueStatement(Node):
     def __init__(self, label):
         super().__init__(JSNode.ContinueStatement, label)
         self.label = label
+
+    def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
+        labelStr = getAstNode(ast, self.label).toString(ast, offset, False) if self.label is not None else ""
+        return f"{offset if startOffset else ''}break{' ' if labelStr else ''}{labelStr}"
 
 
 class DebuggerStatement(Node):
@@ -493,17 +517,18 @@ class ForInStatement(Node):
 
 
 class ForOfStatement(Node):
-    def __init__(self, left, right, body):
-        super().__init__(JSNode.ForOfStatement, (left, right, body))
+    def __init__(self, left, right, body, isAsync):
+        super().__init__(JSNode.ForOfStatement, (left, right, body, isAsync))
         self.left = left
         self.right = right
         self.body = body
+        self.isAsync = isAsync
 
     def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
         leftStr = getAstNode(ast, self.left).toString(ast, offset, False)
         rightStr = getAstNode(ast, self.right).toString(ast, offset, False)
         bodyStr = getAstNode(ast, self.body).toString(ast, offset, False)
-        return f"{offset if startOffset else ''}for ({leftStr} of {rightStr}) {bodyStr}"
+        return f"{offset if startOffset else ''}for{' await' if self.isAsync else ''} ({leftStr} of {rightStr}) {bodyStr}"
 
 
 class ForStatement(Node):
@@ -515,9 +540,9 @@ class ForStatement(Node):
         self.body = body
 
     def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
-        initStr = getAstNode(ast, self.init).toString(ast, offset, False)
-        testStr = getAstNode(ast, self.test).toString(ast, offset, False)
-        updateStr = getAstNode(ast, self.update).toString(ast, offset, False)
+        initStr = getAstNode(ast, self.init).toString(ast, offset, False) if self.init is not None else ''
+        testStr = getAstNode(ast, self.test).toString(ast, offset, False) if self.test is not None else ''
+        updateStr = getAstNode(ast, self.update).toString(ast, offset, False) if self.update is not None else ''
         bodyStr = getAstNode(ast, self.body).toString(ast, offset + TABULATOR, False)
         return f"{offset if startOffset else ''}for ({initStr}; {testStr}; {updateStr}) {bodyStr}"
 
@@ -785,19 +810,21 @@ class Property(StaticNode):
 
     def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
         keyNode, valueNode = self.getKeyValue(ast)
-        key = keyNode.toString(ast, offset, startOffset)
-        value = valueNode.toString(ast, offset, False)
+        key = keyNode.toString(ast, offset, False)
 
         if self.computed:
             key = f"[{key}]"
 
         if self.kind != "init":
-            key = f"{self.kind} {key}"
-            raise NotImplementedError
-
-        if key.strip() == value.strip():
-            return key
-        return f"{key}: {value}"
+            assert self.kind in ("set", "get")
+            assert not self.computed
+            assert isinstance(valueNode, FunctionDeclaration)
+            key = f"{self.kind} {key}{valueNode.toString(ast, offset, False, hideFunctionKeyword=True)}"
+        else:
+            value = valueNode.toString(ast, offset, False)
+            if key.strip() != value.strip():
+                key = f"{key}: {value}"
+        return f"{offset if startOffset else ''}{key}"
 
     def getKeyValue(self, ast: AST) -> tuple[Node, Node]:
         key = getAstNode(ast, self.key)
@@ -826,7 +853,7 @@ class Property(StaticNode):
 
 class RegexLiteral(Node):
     def __init__(self, value, raw, pattern, flags):
-        super().__init__(JSNode.Literal, (value, pattern, flags))
+        super().__init__(JSNode.Literal, (value, raw, pattern, flags))
         self.value = value
         self.raw = raw
         self.regex = RegExp(
@@ -959,7 +986,11 @@ class TemplateElement(Node):
             self.raw = raw
             self.cooked = cooked
 
-    def __init__(self, raw, cooked, tail):
+    def __init__(self, raw, cooked, tail=None):
+        if tail is None:
+            raw, cooked = raw.raw, raw.cooked
+            tail = cooked
+
         self.value = TemplateElement.Value(raw, cooked)
         super().__init__(JSNode.TemplateElement, (self.value, tail))
         self.tail = tail
@@ -1069,7 +1100,7 @@ class UnaryExpression(StaticNode):
             # void 0 = undefined
             return "undefined"
 
-        requireSpace = self.operator in {'void'}  # TODO find others that need it
+        requireSpace = self.operator in {'delete', 'void', 'typeof'}  # from parseUnaryExpression()
 
         return f"{offset if startOffset else ''}{self.operator}{' ' if requireSpace else ''}{arg}"
 
@@ -1139,6 +1170,11 @@ class WhileStatement(Node):
         super().__init__(JSNode.WhileStatement, (test, body))
         self.test = test
         self.body = body
+
+    def toString(self, ast: AST, offset: str = "", startOffset: bool = True) -> str:
+        testStr = getAstNode(ast, self.test).toString(ast, offset, False)
+        bodyStr = getAstNode(ast, self.body).toString(ast, offset + TABULATOR, False)
+        return f"{offset if startOffset else ''}while ({testStr}) {bodyStr}"
 
 
 class WithStatement(Node):

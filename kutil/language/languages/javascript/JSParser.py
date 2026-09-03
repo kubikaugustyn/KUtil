@@ -744,7 +744,7 @@ class JSParser(OneUseParser):
 
         return self.finalize(node, nodes.AsyncFunctionExpression(None, paramIndexes, methodI))
 
-    def parseObjectPropertyKey(self) -> nodes.Identifier:
+    def parseObjectPropertyKey(self) -> nodes.Identifier | nodes.StaticMemberExpression:
         node = self.createNode()
         token = self.nextToken()
 
@@ -1183,16 +1183,21 @@ class JSParser(OneUseParser):
 
         while True:
             optionalChain: bool = self.match('?.')
-            if self.match('.') or optionalChain:
+            optionalChainStaticMember: bool = True
+            if optionalChain:
+                self.expect('?.')
+                optionalChainStaticMember = not self.match('[') and not self.match('(')
+
+            if self.match('.') or (optionalChain and optionalChainStaticMember):
                 self.context.isBindingElement = False
                 self.context.isAssignmentTarget = True
-                self.expect('?.' if optionalChain else '.')
+                if not optionalChain: self.expect('.')
                 prop = self.ast.addNode(self.parseIdentifierName())
                 expr = self.finalize(self.startNode(startToken),
-                                     nodes.StaticMemberExpression(self.ast.addNode(expr), prop,
-                                                                  optionalChain))
+                                     nodes.StaticMemberExpression(self.ast.addNode(expr), prop, optionalChain))
 
             elif self.match('('):
+                if optionalChain: assert not optionalChainStaticMember
                 asyncArrow = maybeAsync and (startToken.lineNumber == self.lookahead.lineNumber)
                 self.context.isBindingElement = False
                 self.context.isAssignmentTarget = False
@@ -1210,13 +1215,14 @@ class JSParser(OneUseParser):
                         self.reinterpretExpressionAsPattern(arg)
                     expr = nodes.AsyncArrowParameterPlaceHolder(self.ast.addNodes(args))
             elif self.match('['):
+                if optionalChain: assert not optionalChainStaticMember
                 self.context.isBindingElement = False
                 self.context.isAssignmentTarget = True
                 self.expect('[')
                 prop = self.ast.addNode(self.isolateCoverGrammar(self.parseExpression))
                 self.expect(']')
                 expr = self.finalize(self.startNode(startToken),
-                                     nodes.ComputedMemberExpression(self.ast.addNode(expr), prop))
+                                     nodes.ComputedMemberExpression(self.ast.addNode(expr), prop, optionalChain))
 
             elif self.lookahead.kind is JSToken.Template and self.lookahead.head:
                 quasi = self.ast.addNode(self.parseTemplateLiteral())
@@ -1251,6 +1257,7 @@ class JSParser(OneUseParser):
 
         while True:
             optionalChain: bool = self.match('?.')
+            if optionalChain: self.expect("?.")
             if self.match('['):
                 self.context.isBindingElement = False
                 self.context.isAssignmentTarget = True
@@ -1258,12 +1265,12 @@ class JSParser(OneUseParser):
                 property = self.ast.addNode(self.isolateCoverGrammar(self.parseExpression))
                 self.expect(']')
                 expr = self.finalize(node, nodes.ComputedMemberExpression(self.ast.addNode(expr),
-                                                                          property))
+                                                                          property, optionalChain))
 
             elif self.match('.') or optionalChain:
                 self.context.isBindingElement = False
                 self.context.isAssignmentTarget = True
-                self.expect('?.' if optionalChain else '.')
+                if not optionalChain: self.expect('.')
                 property = self.ast.addNode(self.parseIdentifierName())
                 expr = self.finalize(node,
                                      nodes.StaticMemberExpression(self.ast.addNode(expr), property,
@@ -2059,6 +2066,9 @@ class JSParser(OneUseParser):
 
         node = self.createNode()
         self.expectKeyword('for')
+        isAsync: bool = self.matchContextualKeyword("await")
+        if isAsync:
+            self.nextToken()
         self.expect('(')
 
         if self.match(';'):
@@ -2208,14 +2218,16 @@ class JSParser(OneUseParser):
         rightI = self.ast.addNode(right) if right else None
 
         if left is None:
+            assert not isAsync, "A standard for statement cannot be 'for await ()'"
             return self.finalize(node,
                                  nodes.ForStatement(initI, testI, updateI, bodyI))
 
         if forIn:
+            assert not isAsync, "A for-in statement cannot be 'for await ()'"
             return self.finalize(node, nodes.ForInStatement(leftI, rightI, bodyI))
 
         return self.finalize(node,
-                             nodes.ForOfStatement(leftI, rightI, bodyI))
+                             nodes.ForOfStatement(leftI, rightI, bodyI, isAsync))
 
     # https://tc39.github.io/ecma262/#sec-continue-statement
 
@@ -2746,7 +2758,7 @@ class JSParser(OneUseParser):
 
         self.expectKeyword('function')
 
-        isGenerator = False if isAsync else self.match('*')
+        isGenerator = self.match('*')
         if isGenerator:
             self.nextToken()
 
@@ -2967,7 +2979,7 @@ class JSParser(OneUseParser):
             computed = self.match('[')
             key = self.parseObjectPropertyKey()
             id = key
-            if id.name == 'static' and (
+            if isinstance(id, nodes.Identifier) and id.name == 'static' and (
                     self.qualifiedPropertyName(self.lookahead) or self.match('*')):
                 token = self.lookahead
                 isStatic = True
