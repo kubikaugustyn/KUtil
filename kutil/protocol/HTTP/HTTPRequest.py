@@ -21,7 +21,7 @@ class HTTPThing(Serializable):
 
     def __init__(self, headers: Optional[HTTPHeaders] = None,
                  body: Optional[ByteBufferLike] = None):
-        self.headers = headers or {}
+        self.headers = headers or HTTPHeaders()
         self.body = body or b''
 
     def write(self, buff: ByteBuffer):
@@ -93,7 +93,7 @@ class HTTPRequest(HTTPThing):
     requestURI: str
 
     def __init__(self, method: Optional[HTTPMethod] = None, requestURI: Optional[str] = None,
-                 headers: Optional[HTTPHeaders] = None, body: Optional[bytes] = None):
+                 headers: Optional[HTTPHeaders] = None, body: Optional[ByteBufferLike] = None):
         super().__init__(headers, body)
         self.method = method or HTTPMethod.GET
         self.requestURI = requestURI or "/"

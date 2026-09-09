@@ -15,7 +15,7 @@ True
 __author__ = "kubik.augustyn@post.cz"
 
 from typing import Iterable, Self, Optional, Iterator, Any, final, Never, Final, cast, Sized, \
-    Protocol
+    Protocol, runtime_checkable
 from abc import ABC, abstractmethod
 
 try:
@@ -32,6 +32,7 @@ class OutOfBoundsUndoError(BaseException):
     pass
 
 
+@runtime_checkable
 class ByteBufferLike(Iterable[int], Sized, Protocol): ...
 
 

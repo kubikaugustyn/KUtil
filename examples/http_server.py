@@ -103,10 +103,8 @@ def onSSEEstablishment(conn: HTTPServerConnection, req: HTTPRequest):
     sse_thread_waiter.reset()
 
 
-def onConnection(conn: ProtocolConnection):
+def onConnection(conn: HTTPServerConnection):
     # print(conn)
-    if not isinstance(conn, HTTPServerConnection):
-        raise ValueError
     sus: HTTPServerConnection = conn
     sus.onWebsocketEstablishment = onWebsocketEstablishment
     sus.onSSEEstablishment = onSSEEstablishment

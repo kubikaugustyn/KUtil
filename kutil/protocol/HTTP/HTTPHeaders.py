@@ -29,22 +29,21 @@ class HTTPHeaders(dict[str, str]):
         super().__init__()
 
     def __setitem__(self, key: str, value: str) -> None:
-        key = CaseInsensitiveKey(key)
-        super().__setitem__(key, value)
+        super().__setitem__(CaseInsensitiveKey(key), value)
 
     def __getitem__(self, key: str) -> str:
-        key = CaseInsensitiveKey(key)
-        return super().__getitem__(key)
+        return super().__getitem__(CaseInsensitiveKey(key))
 
     def __delitem__(self, key: str) -> None:
-        key = CaseInsensitiveKey(key)
-        return super().__delitem__(key)
+        return super().__delitem__(CaseInsensitiveKey(key))
+
+    def __contains__(self, key: object) -> bool:
+        if not isinstance(key, str): return False
+        return super().__contains__(CaseInsensitiveKey(key))
 
     def get[T: Any](self, key: str, default: T = None) -> str | T:
-        key = CaseInsensitiveKey(key)
-        if key not in self:
-            return default
-        return super().__getitem__(key)
+        if key not in self: return default
+        return super().__getitem__(CaseInsensitiveKey(key))
 
 
 if __name__ == '__main__':

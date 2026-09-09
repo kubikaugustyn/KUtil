@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 __author__ = "kubik.augustyn@post.cz"
 
-from kutil.buffer.ByteBuffer import ByteBuffer
+from kutil.buffer.ByteBuffer import ByteBuffer, ByteBufferLike
 from kutil.protocol.HTTP.HTTPHeaders import HTTPHeaders
 from kutil.protocol.HTTP.HTTPRequest import HTTPThing
 from kutil.protocol.AbstractProtocol import NeedMoreDataError
@@ -13,7 +13,7 @@ class HTTPResponse(HTTPThing):
     statusPhrase: str
 
     def __init__(self, statusCode: Optional[int] = None, statusPhrase: Optional[str] = None,
-                 headers: Optional[HTTPHeaders] = None, body: Optional[bytes] = None):
+                 headers: Optional[HTTPHeaders] = None, body: Optional[ByteBufferLike] = None):
         super().__init__(headers, body)
         self.statusCode = statusCode or 200
         self.statusPhrase = statusPhrase or "OK"

@@ -14,7 +14,7 @@ from kutil.protocol.TCPConnection import TCPProtocol
 from kutil.protocol.HTTP.HTTPRequest import HTTPRequest
 from kutil.protocol.HTTP.HTTPResponse import HTTPResponse
 from kutil.protocol.HTTP.HTTPHeaders import HTTPHeaders
-from kutil.protocol.WS.WSMessage import WSMessage
+from kutil.protocol.WS.WSMessage import WSMessage, WSData
 from kutil.protocol.WSConnection import WSProtocol, WSConnection
 from kutil.protocol.SSE.SSEMessage import SSEMessage
 from kutil.protocol.SSEConnection import SSEProtocol, SSEConnection
@@ -69,13 +69,13 @@ class ServerSentEventsNotAllowed(Exception):
 
 class HTTPServerConnection(ProtocolConnection):
     # Note that editing the __init__ method might break the whole thing
-    onData: Callable[[Self, HTTPRequest | WSMessage], None]
+    onData: Callable[["HTTPServerConnection", HTTPRequest | WSMessage], None]
     _acceptWSChecker: AcceptWSChecker
     _acceptSSEChecker: AcceptSSEChecker
     _state: HTTPConnectionState
     # Change these two if you want, called with self and the source request as the arguments
-    onWebsocketEstablishment: Optional[Callable[[Self, HTTPRequest], None]]
-    onSSEEstablishment: Optional[Callable[[Self, HTTPRequest], None]]
+    onWebsocketEstablishment: Optional[Callable[["HTTPServerConnection", HTTPRequest], None]]
+    onSSEEstablishment: Optional[Callable[["HTTPServerConnection", HTTPRequest], None]]
     wsConn: Optional[WSConnection]
     sseConn: Optional[SSEConnection]
 
@@ -197,7 +197,7 @@ class HTTPServerConnection(ProtocolConnection):
 type onConnectionListener = Callable[
     [HTTPServerConnection],  # Argument - the new connection
     Callable[  # Return - onData listener
-        [HTTPServerConnection, HTTPRequest | WSMessage | SSEMessage],
+        [HTTPServerConnection, HTTPRequest | WSData | SSEMessage],
         None
     ]
 ]

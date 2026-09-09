@@ -8,6 +8,7 @@
 /package/
 /package/*
 /.pypirc
+/*.egg-info/
 
 # https://github.com/github/gitignore/blob/main/Python.gitignore
 __pycache__/
