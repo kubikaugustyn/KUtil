@@ -156,7 +156,7 @@ def sse_thread_impl() -> None:
     print("SSE thread stopped.")
 
 
-@router.websocket("/sse")
+@router.sse("/sse")
 def sse(req: HTTPRequest, ctx: SimpleHTTPSSEContext) -> bool:
     def listener(_, event: str, data: Any) -> None:
         if event == "sse-established":

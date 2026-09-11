@@ -468,7 +468,7 @@ class SimpleHTTPServer:
                  hostnames: THostnames = "no-cors") -> None:
         self._server = HTTPServer(address, self._onConnection)
         self._server.acceptWebsocket(self._onWSRequest)
-        self._server.acceptServerSentEvents(self._onWSRequest)
+        self._server.acceptServerSentEvents(self._onSSERequest)
         self._hostnames = hostnames
         self._simple_routes = routes
         self._connections = SimpleHTTPServerConnectionManager()
