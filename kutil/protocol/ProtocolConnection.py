@@ -3,7 +3,7 @@ __author__ = "kubik.augustyn@post.cz"
 
 from threading import Thread, Lock
 from typing import Callable, Any, Optional, Self
-from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_RCVBUF, SO_SNDBUF
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_RCVBUF, SO_SNDBUF, SHUT_RDWR
 
 from kutil.buffer.AppendedByteBuffer import AppendedByteBuffer
 
@@ -81,6 +81,7 @@ class ProtocolConnection:
 
         self.closed = True
         # try:
+        self.sock.shutdown(SHUT_RDWR)
         self.sock.close()
         # except OSError:
         #     pass
