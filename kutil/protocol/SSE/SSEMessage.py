@@ -11,21 +11,21 @@ from kutil.protocol.HTTP.HTTPRequest import HTTPThing
 
 
 class SSEMessage(Serializable):
-    eventName: str
-    data: Optional[bytes]
+    eventName: Optional[str]
+    data: bytes
     eventID: bytes
 
     def __init__(self, eventName: Optional[str] = None, data: Optional[bytes] = None,
                  eventID: Optional[bytes] = None):
-        self.eventName = eventName or "message"
-        self.data = data
+        self.eventName = eventName
+        self.data = data if data is not None else b''
         self.eventID = eventID or HTTPThing.enc(str(randint(0, 0xFFFFFFFF)))
 
     def write(self, buff: ByteBuffer):
-        buff.write(b'event: ').write(HTTPThing.enc(self.eventName)).write(HTTPThing.CRLF)
-        if self.data:
-            buff.write(b'data: ').write(self.data).write(HTTPThing.CRLF)
-        if self.eventID:
+        if self.eventName is not None:
+            buff.write(b'event: ').write(HTTPThing.enc(self.eventName)).write(HTTPThing.CRLF)
+        buff.write(b'data: ').write(self.data).write(HTTPThing.CRLF)
+        if self.eventID is not None:
             buff.write(b'id: ').write(self.eventID).write(HTTPThing.CRLF)
         buff.write(HTTPThing.CRLF)
 
