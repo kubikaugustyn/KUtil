@@ -80,11 +80,11 @@ class ProtocolConnection:
             return
 
         self.closed = True
-        # try:
-        self.sock.shutdown(SHUT_RDWR)
+        try:
+            self.sock.shutdown(SHUT_RDWR)
+        except OSError: # Usually [Errno 9] Bad file descriptor
+            pass
         self.sock.close()
-        # except OSError:
-        #     pass
 
         for listener in self.onCloseListeners:
             listener(self, cause)
