@@ -99,7 +99,7 @@ class SimpleHTTPRequestContext:
     url: ParseResult
 
 
-class SimpleHTTPWebSocketContext:
+class _SimpleHTTPGeneralContext:
     _conn: HTTPServerConnection
     _req: SimpleHTTPRequestContext
     _listeners: list[Callable[[Self, str, Any], None]]
@@ -117,9 +117,6 @@ class SimpleHTTPWebSocketContext:
         for listener in self._listeners:
             listener(self, event, data)
 
-    def sendData(self, data: ByteBufferLike | str) -> None:
-        self._conn.sendData(WSData(data))
-
     def close(self, cause: Optional[Exception] = None) -> None:
         self._conn.close(cause)
 
@@ -136,8 +133,13 @@ class SimpleHTTPWebSocketContext:
         return self._req
 
 
-class SimpleHTTPSSEContext(SimpleHTTPWebSocketContext):
-    def sendData(self, eventName: str, data: Optional[bytes] = None, eventID: Optional[bytes] = None) -> None:
+class SimpleHTTPWebSocketContext(_SimpleHTTPGeneralContext):
+    def sendData(self, data: ByteBufferLike | str) -> None:
+        self._conn.sendData(WSData(data))
+
+
+class SimpleHTTPSSEContext(_SimpleHTTPGeneralContext):
+    def sendData(self, eventName: Optional[str], data: bytes, eventID: Optional[bytes] = None) -> None:
         self._conn.sendData(SSEMessage(eventName, data, eventID))
 
 
