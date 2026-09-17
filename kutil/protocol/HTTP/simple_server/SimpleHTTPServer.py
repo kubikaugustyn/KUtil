@@ -2,13 +2,14 @@
 """An implementation of a high-level HTTP server over the low-level KUtil APIs"""
 __author__ = "Jakub Augustýn <kubik.augustyn@post.cz>"
 
+from asyncio import exceptions
 from threading import Lock
 from typing import Callable, Optional, cast, Literal, Never, overload, Any, Self
 from json import dumps
 from urllib.parse import ParseResult, urlparse, urljoin, parse_qs
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from kutil.buffer.ByteBuffer import ByteBufferLike
+from kutil.buffer.ByteBuffer import ByteBufferLike, ByteBuffer
 from kutil.protocol.ProtocolConnection import ProtocolConnection
 from kutil.protocol.HTTP import HTTPRequest, HTTPResponse, HTTPHeaders, HTTPMethod
 from kutil.protocol.WS.WSMessage import WSMessage, WSData
@@ -90,6 +91,21 @@ def convertResponse(resp: TResponse) -> HTTPResponse:
     else:
         body = cast(TResponseBody, resp)
         return httpResponse(200, body)
+
+
+@dataclass(frozen=True)
+class SimpleHTTPServerCORSSettings:
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/OPTIONS#preflighted_requests_in_cors
+    enabled: bool = False  # Whether to enable CORS
+    foreign_hosts: list[str] = field(default_factory=list)
+    allowed_methods: list[HTTPMethod] = field(default_factory=list)
+    allowed_request_headers: list[str] = field(default_factory=list)
+    allowed_response_headers: list[str] = field(default_factory=list)
+    max_age: int = 86_400  # For how long should the above permissions apply in seconds, defaults to 1 day
+
+    # This configuration only applies to non-overridden OPTIONS requests by default.
+    # You will wither need to specify cors=True to every endpoint you want the non-preflight requests to succeed on,
+    # or transform your response with router.processCORS(...).
 
 
 @dataclass(frozen=True)
@@ -210,9 +226,11 @@ class SimpleHTTPServerRouteManager:
     REQUEST_METHODS: list[TRequestMethod] = [*list(HTTPMethod), "WS", "SSE"]
 
     _root: TRoute
+    _cors: SimpleHTTPServerCORSSettings
 
-    def __init__(self) -> None:
+    def __init__(self, *, cors: Optional[SimpleHTTPServerCORSSettings] = None) -> None:
         self._root = []
+        self._cors = cors or SimpleHTTPServerCORSSettings()
 
     def _addEndpoint(self, route: list[Optional[str]]) -> TSimpleRouteEndpoint:
         entries: TRoute | TSimpleRouteEndpoint = self._root
@@ -261,6 +279,87 @@ class SimpleHTTPServerRouteManager:
         if endpoint[index] is not None: raise RuntimeError("This endpoint and method has already ben added")
         endpoint[index] = value
 
+    def _processSimpleOptionsRequest(self, endpoint: TSimpleRouteEndpoint, req: HTTPRequest,
+                                     ctx: SimpleHTTPRequestContext) -> TResponse:
+        methods: list[str] = [HTTPMethod.OPTIONS.name]
+        all_methods: list[str] = [HTTPMethod.OPTIONS.name]
+        for method, processor in zip(self.REQUEST_METHODS, endpoint):
+            if processor is None: continue
+            if not isinstance(method, HTTPMethod):
+                all_methods.append(method)
+                continue
+            if method is HTTPMethod.OPTIONS: continue
+            methods.append(method.name)
+            all_methods.append(method.name)
+
+        resp: HTTPResponse = httpResponse(200, b'', headers={
+            "Allow": ", ".join(methods),
+            "X-KUtil-Allow": ", ".join(all_methods),
+        })
+        return self.processCORS(req, ctx, resp, _inner_methods=methods)
+
+    def processCORS(self, req: HTTPRequest, ctx: SimpleHTTPRequestContext, resp: HTTPResponse, *,
+                    _inner_methods: Optional[list[str]] = None) -> TResponse:
+        methods: list[str] = _inner_methods if _inner_methods is not None else [req.method.name]
+        required_method: Optional[str] = req.headers.get("Access-Control-Request-Method")
+        if required_method is not None and (
+                required_method not in methods or
+                not self._cors.enabled or
+                HTTPMethod(required_method.encode("utf-8")) not in self._cors.allowed_methods
+        ):
+            return httpResponse(403, "This endpoint does not support the requested method", headers=resp.headers)
+
+        required_headers: list[str] = req.headers.get("Access-Control-Request-Headers", "").split(",")
+        required_headers = list(filter(bool, map(lambda x: x.strip(), required_headers)))
+        headers_allowed: bool = self._cors.enabled
+        if headers_allowed:
+            for header in required_headers:
+                for other in self._cors.allowed_request_headers:
+                    if header.lower() == other.lower(): break
+                else:
+                    headers_allowed = False
+                    break
+        if len(required_headers) > 0 and not headers_allowed:
+            return httpResponse(403, "This server does not support the requested headers", headers=resp.headers)
+
+        origin: Optional[str] = req.headers.get("Origin")
+        server_host: str = f"{ctx.url.scheme}://{ctx.url.netloc}"
+        if origin is not None and (
+                origin != server_host and
+                (not self._cors.enabled or (
+                        origin not in self._cors.foreign_hosts and "*" not in self._cors.foreign_hosts
+                ))
+        ):
+            return httpResponse(403, "This server does not support the requested origin", headers=resp.headers)
+
+        if self._cors.enabled:
+            if origin is not None:
+                resp.headers["Access-Control-Allow-Origin"] = cast(str, origin)
+
+            allowed_methods: set[str] = set(map(lambda x: x.name, self._cors.allowed_methods)).intersection(methods)
+            if len(allowed_methods) > 0:
+                resp.headers["Access-Control-Allow-Methods"] = ", ".join(allowed_methods)
+
+            if len(required_headers) > 0:
+                resp.headers["Access-Control-Allow-Headers"] = ", ".join(required_headers)
+
+            if len(self._cors.allowed_response_headers) > 0:
+                resp.headers["Access-Control-Expose-Headers"] = ", ".join(self._cors.allowed_response_headers)
+
+            resp.headers["Access-Control-Max-Age"] = str(self._cors.max_age)
+        return resp
+
+    def _processSimpleHeadRequest(self, get_processor: TSimpleHTTPRouteProcessor, req: HTTPRequest,
+                                  ctx: SimpleHTTPRequestContext) -> TResponse:
+        raw_response: TResponse = get_processor(req, ctx)
+        response: HTTPResponse = convertResponse(raw_response)
+
+        # Remove the body
+        if isinstance(response.body, ByteBuffer): response.body.destroy()
+        response.body = b''
+
+        return response
+
     @overload
     def register(self, method: HTTPMethod, route: str, processor: TSimpleHTTPRouteProcessor) -> None:
         ...
@@ -277,16 +376,21 @@ class SimpleHTTPServerRouteManager:
         segments: list[Optional[str]] = self._parseRouteWithWildcards(route)
         self._addEntry(segments, method, processor)
 
-    def route(self, route: str, method: HTTPMethod = HTTPMethod.GET) -> \
+    def route(self, route: str, method: HTTPMethod = HTTPMethod.GET, *, cors: bool = False) -> \
             Callable[[TSimpleHTTPRouteProcessor], TSimpleHTTPRouteProcessor]:
         """
         A decorator to register a route.
 
         :param route: The route to register
         :param method: HTTP method, defaults to GET
+        :param cors: Whether to call processCORS on the response before returning it
         """
 
         def wrapper(function: TSimpleHTTPRouteProcessor) -> TSimpleHTTPRouteProcessor:
+            if cors:
+                original_function: TSimpleHTTPRouteProcessor = function
+                function = lambda req, ctx: self.processCORS(req, ctx, convertResponse(original_function(req, ctx)))
+
             self.register(method, route, function)
             return function
 
@@ -336,6 +440,18 @@ class SimpleHTTPServerRouteManager:
 
         index: int = self.REQUEST_METHODS.index(method)
         processor: Optional[TSimpleRouteProcessor] = endpoint[index]
+
+        # Try to fall back to the default OPTIONS and HEAD handlers
+        if processor is None and method in (HTTPMethod.OPTIONS, HTTPMethod.HEAD):
+            if method is HTTPMethod.OPTIONS:
+                processor = lambda a, b: self._processSimpleOptionsRequest(endpoint, a, b)
+            else:
+                get_index: int = self.REQUEST_METHODS.index(HTTPMethod.GET)
+                get_processor: Optional[TSimpleRouteProcessor] = endpoint[get_index]
+                if get_processor is not None:
+                    get_processor_http = cast(TSimpleHTTPRouteProcessor, get_processor)
+                    processor = lambda a, b: self._processSimpleHeadRequest(get_processor_http, a, b)
+
         if processor is None:
             methods: list[str] = []
             for method, processor in zip(self.REQUEST_METHODS, endpoint):
@@ -434,6 +550,15 @@ class SimpleHTTPServerConnectionManager:
         self.removeListeners(conn)
         self.dispatch(conn, "post-close", cause)
 
+    def onHTTPRequest(self, conn: HTTPServerConnection, req: HTTPRequest) -> None:
+        self.dispatch(conn, "http-request", req)
+
+    def onHTTPException(self, conn: HTTPServerConnection, req: HTTPRequest, exception: Exception) -> None:
+        self.dispatch(conn, "http-exception", (req, exception))
+
+    def onHTTPResponse(self, conn: HTTPServerConnection, req: HTTPRequest, resp: HTTPResponse) -> None:
+        self.dispatch(conn, "http-response", (req, resp))
+
     def onWebSocketEstablishment(self, conn: HTTPServerConnection, req: HTTPRequest) -> None:
         self.dispatch(conn, "websocket-established", req)
 
@@ -518,10 +643,13 @@ class SimpleHTTPServer:
     def _onHTTPData(self, conn: HTTPServerConnection, req: HTTPRequest) -> None:
         timing: HTTPRequestTiming = HTTPRequestTiming()
         timing.event("PreRequest", forceNoTime=True)
+        self._connections.onHTTPRequest(conn, req)
+
         error: Optional[Exception] = None
         try:
             resp: HTTPResponse = self._processRequest(conn, req, timing)
         except Exception as e:
+            self._connections.onHTTPException(conn, req, e)
             resp: HTTPResponse = httpResponse(500, str(e))
             error = e
 
@@ -535,6 +663,7 @@ class SimpleHTTPServer:
             if origin:
                 resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Connection"] = "close"
+        self._connections.onHTTPResponse(conn, req, resp)
         conn.sendData(resp)
 
         if resp.headers.get("Connection", "close") != "keep-alive" or error is not None:
@@ -561,22 +690,25 @@ class SimpleHTTPServer:
         try:
             processor, params = self._simple_routes.resolve(req.method, url.path)
             ctx: SimpleHTTPRequestContext = SimpleHTTPRequestContext(params, query, url)
-            return self._executeProcessor(req, processor, ctx)
-        except EndpointNotFoundError:
+            return self._executeProcessor(conn, req, processor, ctx)
+        except EndpointNotFoundError as e:
+            self._connections.onHTTPException(conn, req, e)
             pass  # Pass through
         except MethodNotAllowedError as e:
+            self._connections.onHTTPException(conn, req, e)
             methods: list[str] = e.methods
             return httpResponse(405, f"This endpoint does not accept the requested method. "
-                                     f"Accepted method{'s' if len(methods) > 1 else ''}: {', '.join(methods)}")
+                                     f"Accepted method{'s' if len(methods) > 1 else ''}: {', '.join(methods)}",
+                                headers={"Allow": ", ".join(methods)})
 
         return httpResponse(404, "The requested resource was not found on this server")
 
-    @classmethod
-    def _executeProcessor(cls, req: HTTPRequest, processor: TSimpleHTTPRouteProcessor,
-                          ctx: SimpleHTTPRequestContext) -> HTTPResponse:
+    def _executeProcessor(self, conn: HTTPServerConnection, req: HTTPRequest,
+                          processor: TSimpleHTTPRouteProcessor, ctx: SimpleHTTPRequestContext) -> HTTPResponse:
         try:
             resp: TResponse = processor(req, ctx)
         except Exception as e:
+            self._connections.onHTTPException(conn, req, e)
             return httpResponse(500, "Route processor failed: " + str(e))
         return convertResponse(resp)
 
@@ -617,7 +749,7 @@ __all__ = [
     "httpResponse", "SimpleHTTPServer",  # Primary
     # Secondary
     "SimpleHTTPServerRouteManager", "SimpleHTTPRequestContext", "SimpleHTTPWebSocketContext", "SimpleHTTPSSEContext",
-    "TResponse", "TResponseBody", "THeaders",
+    "TResponse", "TResponseBody", "THeaders", "SimpleHTTPServerCORSSettings",
     "convertResponse",  # Utils
     "HTTPMethod", "HTTPRequest", "HTTPResponse", "WSData", "SSEMessage",  # Simpler imports
 ]

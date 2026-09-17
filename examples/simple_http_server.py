@@ -8,9 +8,18 @@ from kutil.io.file import readFile, bCRLF
 from kutil.threads import ThreadWaiter
 from kutil.protocol.HTTP.simple_server.SimpleHTTPServer import httpResponse, SimpleHTTPServer, \
     SimpleHTTPServerRouteManager, SimpleHTTPRequestContext, SimpleHTTPWebSocketContext, SimpleHTTPSSEContext, TResponse, \
-    TResponseBody, THeaders, convertResponse, HTTPMethod, HTTPRequest, HTTPResponse, WSData, SSEMessage
+    TResponseBody, THeaders, SimpleHTTPServerCORSSettings, convertResponse, HTTPMethod, HTTPRequest, HTTPResponse, \
+    WSData, SSEMessage
 
-router: SimpleHTTPServerRouteManager = SimpleHTTPServerRouteManager()
+router: SimpleHTTPServerRouteManager = SimpleHTTPServerRouteManager(
+    cors=SimpleHTTPServerCORSSettings(
+        enabled=True,
+        foreign_hosts=["*"],
+        allowed_methods=[HTTPMethod.DELETE],
+        allowed_request_headers=["Content-Type", "X-Secret-Header-Request"],
+        allowed_response_headers=["X-Secret-Header"],
+    )
+)
 
 
 @router.route("/")
@@ -39,6 +48,7 @@ def get_test(req: HTTPRequest, ctx: SimpleHTTPRequestContext) -> TResponse:
     <a href="/ws">WebSocket test</a><br>
     <a href="/sse">SSE test</a><br>
     <a href="/big-file">Big file</a><br>
+    CORS testing (DevTools Console & Network): <pre>await fetch("http://localhost:9000/cors", {method: "DELETE", headers: {"X-Secret-Header-Request": "idk", "Content-Type": "application/json"}, body: JSON.stringify({"ignored": "body"})})</pre>
 </body>
 </html>"""
     return httpResponse(200, body, contentType="text/html")
@@ -181,6 +191,18 @@ def big_file(req: HTTPRequest, ctx: SimpleHTTPRequestContext) -> TResponse:
     big: ByteBuffer = AppendedByteBuffer([lorem] * 100)
     return httpResponse(200, big, contentType="text/plain",
                         headers={"Content-Disposition": 'attachment; filename="big-file.txt"'})
+
+
+@router.route("/cors", HTTPMethod.DELETE, cors=True)
+def big_file(req: HTTPRequest, ctx: SimpleHTTPRequestContext) -> TResponse:
+    try:
+        request: str = req.headers["X-Secret-Header-Request"]
+    except KeyError:
+        return 400, "Missing X-Secret-Header-Request header"
+
+    return httpResponse(200, "Deleted nothing :-)", headers={
+        "X-Secret-Header": f"some-secret-value; {request}",
+    })
 
 
 def main() -> None:
